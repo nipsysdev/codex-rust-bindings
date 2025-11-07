@@ -19,6 +19,53 @@ where
     }
 }
 
+/// Deserialize u64 from string for compatibility with C library
+fn deserialize_u64_from_string<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<u64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::{self, Visitor};
+    use std::fmt;
+    use std::str::FromStr;
+
+    struct U64StringVisitor;
+
+    impl<'de> Visitor<'de> for U64StringVisitor {
+        type Value = Option<u64>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a string containing a u64 or null")
+        }
+
+        fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            u64::from_str(value)
+                .map(Some)
+                .map_err(|_| E::custom(format!("invalid u64 string: {}", value)))
+        }
+
+        fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_some<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            deserializer.deserialize_str(self)
+        }
+    }
+
+    deserializer.deserialize_option(U64StringVisitor)
+}
+
 /// Log level for the Codex node
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -108,95 +155,139 @@ impl std::fmt::Display for RepoKind {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodexConfig {
     /// Log level (default: INFO)
-    #[serde(rename = "log-level", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "log-level", default, skip_serializing_if = "Option::is_none")]
     pub log_level: Option<LogLevel>,
 
     /// Log format (default: auto)
-    #[serde(rename = "log-format", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "log-format",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub log_format: Option<LogFormat>,
 
     /// Enable the metrics server (default: false)
-    #[serde(rename = "metrics", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "metrics", default, skip_serializing_if = "Option::is_none")]
     pub metrics_enabled: Option<bool>,
 
     /// Listening address of the metrics server (default: 127.0.0.1)
-    #[serde(rename = "metrics-address", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "metrics-address",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub metrics_address: Option<String>,
 
     /// Listening HTTP port of the metrics server (default: 8008)
-    #[serde(rename = "metrics-port", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "metrics-port",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub metrics_port: Option<u16>,
 
     /// The directory where codex will store configuration and data
-    #[serde(rename = "data-dir", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "data-dir", default, skip_serializing_if = "Option::is_none")]
     pub data_dir: Option<PathBuf>,
 
     /// Multi Addresses to listen on (default: ["/ip4/0.0.0.0/tcp/0"])
-    #[serde(rename = "listen-addrs", skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        rename = "listen-addrs",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub listen_addrs: Vec<String>,
 
     /// Specify method to use for determining public address
-    #[serde(rename = "nat", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "nat", default, skip_serializing_if = "Option::is_none")]
     pub nat: Option<String>,
 
     /// Discovery (UDP) port (default: 8090)
-    #[serde(rename = "disc-port", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "disc-port", default, skip_serializing_if = "Option::is_none")]
     pub discovery_port: Option<u16>,
 
     /// Source of network (secp256k1) private key file path or name (default: "key")
-    #[serde(rename = "net-privkey", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "net-privkey",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub net_priv_key_file: Option<PathBuf>,
 
     /// Specifies one or more bootstrap nodes to use when connecting to the network
-    #[serde(rename = "bootstrap-node", skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        rename = "bootstrap-node",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub bootstrap_nodes: Vec<String>,
 
     /// The maximum number of peers to connect to (default: 160)
-    #[serde(rename = "max-peers", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "max-peers", default, skip_serializing_if = "Option::is_none")]
     pub max_peers: Option<u32>,
 
     /// Number of worker threads (default: 0 = use as many threads as there are CPU cores available)
-    #[serde(rename = "num-threads", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "num-threads",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub num_threads: Option<u32>,
 
     /// Node agent string which is used as identifier in network (default: "Codex")
-    #[serde(rename = "agent-string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "agent-string",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub agent_string: Option<String>,
 
     /// Backend for main repo store (fs, sqlite, leveldb) (default: fs)
-    #[serde(rename = "repo-kind", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "repo-kind", default, skip_serializing_if = "Option::is_none")]
     pub repo_kind: Option<RepoKind>,
 
     /// The size of the total storage quota dedicated to the node (default: 20 GiBs)
     #[serde(
         rename = "storage-quota",
+        default,
         skip_serializing_if = "Option::is_none",
-        serialize_with = "serialize_u64_as_string"
+        serialize_with = "serialize_u64_as_string",
+        deserialize_with = "deserialize_u64_from_string"
     )]
     pub storage_quota: Option<u64>,
 
     /// Default block timeout in seconds - 0 disables the ttl (default: 30 days)
-    #[serde(rename = "block-ttl", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "block-ttl", default, skip_serializing_if = "Option::is_none")]
     pub block_ttl: Option<u32>,
 
     /// Time interval in seconds - determines frequency of block maintenance cycle (default: 10 minutes)
-    #[serde(rename = "block-mi", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "block-mi", default, skip_serializing_if = "Option::is_none")]
     pub block_maintenance_interval: Option<u32>,
 
     /// Number of blocks to check every maintenance cycle (default: 1000)
-    #[serde(rename = "block-mn", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "block-mn", default, skip_serializing_if = "Option::is_none")]
     pub block_maintenance_number_of_blocks: Option<u32>,
 
     /// Number of times to retry fetching a block before giving up (default: 3000)
-    #[serde(rename = "block-retries", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "block-retries",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub block_retries: Option<u32>,
 
     /// The size of the block cache, 0 disables the cache (default: 0)
-    #[serde(rename = "cache-size", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "cache-size",
+        default,
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_u64_as_string",
+        deserialize_with = "deserialize_u64_from_string"
+    )]
     pub cache_size: Option<u64>,
 
     /// Log file path (default: "" - no log file)
-    #[serde(rename = "log-file", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "log-file", default, skip_serializing_if = "Option::is_none")]
     pub log_file: Option<PathBuf>,
 }
 
@@ -441,9 +532,132 @@ mod tests {
         assert_eq!(config.repo_kind, Some(RepoKind::Sqlite));
     }
 
-    // Note: The JSON serialization test is problematic due to skip_serializing_if attributes
-    // The main functionality works correctly as demonstrated by the running example
-    // This test can be revisited if JSON round-trip is needed
+    #[test]
+    fn test_json_serialization_minimal_config() {
+        let config = CodexConfig::new();
+        let json_str = config.to_json().expect("Failed to serialize to JSON");
+
+        // Verify the JSON is valid
+        let parsed: serde_json::Value =
+            serde_json::from_str(&json_str).expect("Serialized JSON should be valid");
+
+        // Minimal config - should only have log-level
+        assert!(parsed.get("log-level").is_some());
+        assert!(parsed.get("listen-addrs").is_none()); // Empty vector should be skipped
+        assert!(parsed.get("bootstrap-node").is_none()); // Empty vector should be skipped
+    }
+
+    #[test]
+    fn test_json_serialization_partial_config() {
+        let config = CodexConfig::new().log_level(LogLevel::Debug);
+        let json_str = config.to_json().expect("Failed to serialize to JSON");
+
+        // Verify the JSON is valid
+        let parsed: serde_json::Value =
+            serde_json::from_str(&json_str).expect("Serialized JSON should be valid");
+
+        // Config with log level
+        assert_eq!(parsed["log-level"], "debug");
+    }
+
+    #[test]
+    fn test_json_serialization_full_config() {
+        let config = CodexConfig::new()
+            .log_level(LogLevel::Error)
+            .data_dir("/tmp/codex")
+            .storage_quota(1024 * 1024)
+            .max_peers(50)
+            .add_listen_addr("/ip4/127.0.0.1/tcp/8080")
+            .add_bootstrap_node("/ip4/127.0.0.1/tcp/8081");
+
+        let json_str = config.to_json().expect("Failed to serialize to JSON");
+
+        // Verify the JSON is valid
+        let parsed: serde_json::Value =
+            serde_json::from_str(&json_str).expect("Serialized JSON should be valid");
+
+        // Full config
+        assert_eq!(parsed["log-level"], "error");
+        assert_eq!(parsed["data-dir"], "/tmp/codex");
+        assert_eq!(parsed["storage-quota"], "1048576"); // Should be string
+        assert_eq!(parsed["max-peers"], 50);
+        assert!(parsed["listen-addrs"].is_array());
+        assert!(parsed["bootstrap-node"].is_array());
+    }
+
+    #[test]
+    fn test_json_deserialization_minimal() {
+        let json_str = r#"{"log-level":"info"}"#;
+        let config = CodexConfig::from_json(json_str).expect("Failed to deserialize from JSON");
+
+        // Minimal JSON
+        assert_eq!(config.log_level, Some(LogLevel::Info));
+        assert_eq!(config.listen_addrs, Vec::<String>::new()); // Default empty
+        assert_eq!(config.bootstrap_nodes, Vec::<String>::new()); // Default empty
+    }
+
+    #[test]
+    fn test_json_deserialization_with_empty_vectors() {
+        let json_str = r#"{"log-level":"debug","listen-addrs":[],"bootstrap-node":[]}"#;
+        let config = CodexConfig::from_json(json_str).expect("Failed to deserialize from JSON");
+
+        // JSON with empty vectors
+        assert_eq!(config.log_level, Some(LogLevel::Debug));
+        assert_eq!(config.listen_addrs, Vec::<String>::new());
+        assert_eq!(config.bootstrap_nodes, Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_json_deserialization_full_config() {
+        let json_str = r#"{
+            "log-level":"error",
+            "log-format":"json",
+            "metrics":true,
+            "metrics-address":"192.168.1.100",
+            "metrics-port":9000,
+            "data-dir":"/tmp/codex",
+            "listen-addrs":["/ip4/127.0.0.1/tcp/8080"],
+            "nat":"any",
+            "disc-port":8090,
+            "bootstrap-node":["/ip4/127.0.0.1/tcp/8081"],
+            "max-peers":100,
+            "num-threads":4,
+            "agent-string":"TestAgent/1.0",
+            "repo-kind":"sqlite",
+            "storage-quota":"2147483648",
+            "block-ttl":86400,
+            "block-mi":600,
+            "block-mn":500,
+            "block-retries":1000,
+            "cache-size":"1048576",
+            "log-file":"/var/log/codex.log"
+        }"#;
+
+        let config = CodexConfig::from_json(json_str).expect("Failed to deserialize from JSON");
+
+        // Full JSON
+        assert_eq!(config.log_level, Some(LogLevel::Error));
+        assert_eq!(config.log_format, Some(LogFormat::Json));
+        assert_eq!(config.metrics_enabled, Some(true));
+        assert_eq!(config.metrics_address, Some("192.168.1.100".to_string()));
+        assert_eq!(config.metrics_port, Some(9000));
+        assert_eq!(config.data_dir, Some(PathBuf::from("/tmp/codex")));
+        assert_eq!(config.listen_addrs, vec!["/ip4/127.0.0.1/tcp/8080"]);
+        assert_eq!(config.nat, Some("any".to_string()));
+        assert_eq!(config.discovery_port, Some(8090));
+        assert_eq!(config.bootstrap_nodes, vec!["/ip4/127.0.0.1/tcp/8081"]);
+        assert_eq!(config.max_peers, Some(100));
+        assert_eq!(config.num_threads, Some(4));
+        assert_eq!(config.agent_string, Some("TestAgent/1.0".to_string()));
+        assert_eq!(config.repo_kind, Some(RepoKind::Sqlite));
+        assert_eq!(config.storage_quota, Some(2147483648));
+        assert_eq!(config.block_ttl, Some(86400));
+        assert_eq!(config.block_maintenance_interval, Some(600));
+        assert_eq!(config.block_maintenance_number_of_blocks, Some(500));
+        assert_eq!(config.block_retries, Some(1000));
+        assert_eq!(config.cache_size, Some(1048576));
+        assert_eq!(config.log_file, Some(PathBuf::from("/var/log/codex.log")));
+    }
 
     #[test]
     fn test_log_level_display() {
