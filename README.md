@@ -87,18 +87,6 @@ cargo release-prep
 cargo clean-all
 ```
 
-#### Integration Tests
-
-For integration tests, you can use either the direct command or the alias:
-
-```bash
-# Direct command
-cargo test --test integration_test
-
-# Using the alias
-cargo test-integration
-```
-
 ### Custom Build Flags
 
 You can pass custom flags to the libcodex build process using the `CODEX_LIB_PARAMS` environment variable:

@@ -5,7 +5,6 @@ build-debug = "build"
 
 # Test aliases
 test-all = "test --all-features"
-test-integration = "test --test integration_test"
 
 # Example aliases
 example = "run --example basic_usage"
