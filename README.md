@@ -9,7 +9,6 @@ Include in your Cargo project:
 ```toml
 [dependencies]
 codex-rust-bindings = "0.1"
-tokio = { version = "1.0", features = ["full"] }
 ```
 
 For examples on how to use those bindings, please take a look at the [integration tests](./tests/).
