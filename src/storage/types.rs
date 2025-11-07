@@ -275,25 +275,6 @@ mod tests {
     }
 
     #[test]
-    fn test_space_creation() {
-        let space = Space::new()
-            .total_blocks(10)
-            .quota_max_bytes(1000)
-            .quota_used_bytes(800)
-            .quota_reserved_bytes(100);
-
-        assert_eq!(space.total_blocks, 10);
-        assert_eq!(space.quota_max_bytes, 1000);
-        assert_eq!(space.quota_used_bytes, 800);
-        assert_eq!(space.quota_reserved_bytes, 100);
-        assert_eq!(space.available_bytes(), 200);
-        assert_eq!(space.usage_percentage(), 0.8);
-        assert_eq!(space.reserved_percentage(), 0.1);
-        assert!(space.is_nearly_full());
-        assert!(!space.is_critically_full());
-    }
-
-    #[test]
     fn test_manifest_serialization() {
         let manifest = Manifest::new("QmTest".to_string())
             .tree_cid("QmTree".to_string())

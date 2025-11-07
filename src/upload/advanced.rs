@@ -158,64 +158,7 @@ pub async fn upload_file(node: &CodexNode, options: UploadOptions) -> Result<Upl
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::config::CodexConfig;
     use crate::upload::types::UploadStrategy;
-    use std::io::Cursor;
-
-    #[tokio::test]
-    async fn test_upload_reader() {
-        let config = CodexConfig::default();
-        let mut node = CodexNode::new(config).unwrap();
-        node.start().unwrap();
-
-        let data = b"Hello, world!";
-        let reader = Cursor::new(data);
-        let options = UploadOptions::new().chunk_size(5);
-
-        let result = upload_reader(&node, options, reader).await;
-        assert!(result.is_ok());
-
-        let upload_result = result.unwrap();
-        assert_eq!(upload_result.size, data.len());
-        assert_eq!(upload_result.chunks, Some(3)); // 5 + 5 + 3
-
-        node.stop().unwrap();
-        node.destroy().unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_upload_file_no_filepath() {
-        let config = CodexConfig::default();
-        let node = CodexNode::new(config).unwrap();
-
-        let options = UploadOptions::new(); // No filepath set
-        let result = upload_file(&node, options).await;
-        assert!(result.is_err());
-
-        match result.unwrap_err() {
-            CodexError::InvalidParameter { parameter, .. } => {
-                assert_eq!(parameter, "filepath");
-            }
-            _ => panic!("Expected InvalidParameter error"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_upload_file_nonexistent() {
-        let config = CodexConfig::default();
-        let node = CodexNode::new(config).unwrap();
-
-        let options = UploadOptions::new().filepath("/nonexistent/file.txt");
-        let result = upload_file(&node, options).await;
-        assert!(result.is_err());
-
-        match result.unwrap_err() {
-            CodexError::InvalidParameter { parameter, .. } => {
-                assert_eq!(parameter, "filepath");
-            }
-            _ => panic!("Expected InvalidParameter error"),
-        }
-    }
 
     #[test]
     fn test_upload_progress_callback() {

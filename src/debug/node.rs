@@ -225,63 +225,6 @@ pub async fn update_log_level(node: &CodexNode, log_level: LogLevel) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::config::CodexConfig;
-    use tempfile::tempdir;
-
-    #[tokio::test]
-    async fn test_debug_info() {
-        // Simplified test that doesn't require actual node startup
-        // This tests the structure and basic functionality without C library dependencies
-        let temp_dir = tempdir().unwrap();
-        let config = CodexConfig::new()
-            .log_level(crate::node::config::LogLevel::Error)
-            .data_dir(temp_dir.path())
-            .storage_quota(100 * 1024 * 1024);
-
-        let node = CodexNode::new(config).unwrap();
-        // Don't actually start the node to avoid segfaults
-
-        // Test that we can create the debug info structure
-        let debug_info = DebugInfo::new();
-
-        assert!(!debug_info.id.is_empty() || debug_info.id.is_empty()); // Basic field access test
-        assert_eq!(debug_info.address_count(), 0);
-        assert_eq!(debug_info.announce_address_count(), 0);
-
-        node.destroy().unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_update_log_level() {
-        // Simplified test that doesn't require actual node startup
-        let temp_dir = tempdir().unwrap();
-        let config = CodexConfig::new()
-            .log_level(crate::node::config::LogLevel::Error)
-            .data_dir(temp_dir.path())
-            .storage_quota(100 * 1024 * 1024);
-
-        let node = CodexNode::new(config).unwrap();
-        // Don't start the node to avoid segfaults
-
-        // Test that we can create log levels
-        let log_levels = vec![
-            LogLevel::Trace,
-            LogLevel::Debug,
-            LogLevel::Info,
-            LogLevel::Notice,
-            LogLevel::Warn,
-            LogLevel::Error,
-            LogLevel::Fatal,
-        ];
-
-        for log_level in &log_levels {
-            // Test that log levels can be created and have string representations
-            let level_str = log_level.to_string();
-            assert!(!level_str.is_empty());
-        }
-
-        node.destroy().unwrap();
-    }
 
     #[test]
     fn test_log_level_display() {
@@ -348,8 +291,6 @@ mod tests {
 
     #[test]
     fn test_debug_info_structure() {
-        // Simplified test that doesn't require actual node startup
-        // Create a test debug info to verify structure
         let test_debug_info = DebugInfo {
             id: "12D3KooWExamplePeer".to_string(),
             addrs: vec!["/ip4/127.0.0.1/tcp/8080".to_string()],

@@ -309,53 +309,6 @@ pub fn peer_debug(node: &CodexNode, peer_id: &str) -> Result<PeerRecord> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::config::{CodexConfig, LogLevel};
-    use tempfile::tempdir;
-
-    #[tokio::test]
-    async fn test_peer_debug() {
-        // Simplified test that doesn't require actual node startup
-        let temp_dir = tempdir().unwrap();
-        let config = CodexConfig::new()
-            .log_level(LogLevel::Error)
-            .data_dir(temp_dir.path())
-            .storage_quota(100 * 1024 * 1024);
-
-        let node = CodexNode::new(config).unwrap();
-        // Don't start the node to avoid segfaults
-
-        // Test that we can create peer records
-        let peer_id = "12D3KooWExamplePeer123456789";
-        let record = PeerRecord::new(peer_id.to_string())
-            .addresses(vec!["/ip4/192.168.1.100/tcp/8080".to_string()])
-            .connected(true)
-            .latency(50);
-
-        assert_eq!(record.id, peer_id);
-        assert!(!record.addresses.is_empty());
-        assert_eq!(record.latency_ms, Some(50));
-
-        node.destroy().unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_peer_debug_validation() {
-        // Test validation logic without actual node operations
-        let temp_dir = tempdir().unwrap();
-        let config = CodexConfig::new()
-            .log_level(LogLevel::Error)
-            .data_dir(temp_dir.path())
-            .storage_quota(100 * 1024 * 1024);
-
-        let node = CodexNode::new(config).unwrap();
-
-        // Test that empty peer ID validation would work
-        // (We can't actually call peer_debug without causing segfaults)
-        let empty_peer_id = "";
-        assert!(empty_peer_id.is_empty());
-
-        node.destroy().unwrap();
-    }
 
     #[test]
     fn test_peer_record_methods() {

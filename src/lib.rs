@@ -66,13 +66,3 @@ pub use upload::{
     upload_cancel, upload_chunk, upload_file, upload_finalize, upload_init, upload_reader,
     UploadOptions, UploadProgress,
 };
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn test_library_compiles() {
-        // This test just ensures the library compiles correctly
-        assert!(true);
-    }
-}

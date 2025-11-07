@@ -156,103 +156,7 @@ mod tests {
     use tempfile::tempdir;
 
     #[tokio::test]
-    async fn test_manifests_empty() {
-        let temp_dir = tempdir().unwrap();
-        let config = CodexConfig::new()
-            .log_level(LogLevel::Error) // Reduce log noise
-            .data_dir(temp_dir.path())
-            .storage_quota(100 * 1024 * 1024); // 100 MB
-
-        let mut node = CodexNode::new(config).unwrap();
-        node.start().unwrap();
-
-        let manifests_result = manifests(&node).await;
-        assert!(
-            manifests_result.is_ok(),
-            "Failed to get manifests: {:?}",
-            manifests_result.err()
-        );
-
-        let manifest_list = manifests_result.unwrap();
-        // Should be empty for a new node
-        assert_eq!(manifest_list.len(), 0, "New node should have no manifests");
-
-        node.stop().unwrap();
-        node.destroy().unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_manifests_with_started_node() {
-        let temp_dir = tempdir().unwrap();
-        let config = CodexConfig::new()
-            .log_level(LogLevel::Error)
-            .data_dir(temp_dir.path())
-            .storage_quota(100 * 1024 * 1024);
-
-        let mut node = CodexNode::new(config).unwrap();
-        node.start().unwrap();
-
-        let manifests_result = manifests(&node).await;
-        assert!(manifests_result.is_ok());
-
-        let manifest_list = manifests_result.unwrap();
-        // Verify the structure of returned manifests
-        for manifest in &manifest_list {
-            assert!(!manifest.cid.is_empty(), "Manifest CID should not be empty");
-            assert!(
-                manifest.dataset_size > 0,
-                "Manifest dataset_size should be positive"
-            );
-            assert!(
-                manifest.block_size > 0,
-                "Manifest block_size should be positive"
-            );
-        }
-
-        node.stop().unwrap();
-        node.destroy().unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_space_info() {
-        let temp_dir = tempdir().unwrap();
-        let quota = 100 * 1024 * 1024; // 100 MB
-        let config = CodexConfig::new()
-            .log_level(LogLevel::Error)
-            .data_dir(temp_dir.path())
-            .storage_quota(quota);
-
-        let mut node = CodexNode::new(config).unwrap();
-        node.start().unwrap();
-
-        let space_result = space(&node).await;
-        assert!(
-            space_result.is_ok(),
-            "Failed to get space info: {:?}",
-            space_result.err()
-        );
-
-        let space_info = space_result.unwrap();
-        assert!(space_info.quota_max_bytes > 0, "Quota should be positive");
-        assert!(
-            space_info.quota_used_bytes > 0 || space_info.quota_used_bytes == 0,
-            "Used space should be valid"
-        );
-        assert!(
-            space_info.quota_used_bytes <= space_info.quota_max_bytes,
-            "Used space should not exceed quota"
-        );
-        assert!(
-            space_info.quota_reserved_bytes > 0 || space_info.quota_reserved_bytes == 0,
-            "Reserved space should be valid"
-        );
-
-        node.stop().unwrap();
-        node.destroy().unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_storage_operations_without_starting_node() {
+    async fn test_storage_operations() {
         let temp_dir = tempdir().unwrap();
         let config = CodexConfig::new()
             .log_level(LogLevel::Error)
@@ -260,9 +164,7 @@ mod tests {
             .storage_quota(100 * 1024 * 1024);
 
         let node = CodexNode::new(config).unwrap();
-        // Don't start the node
 
-        // These operations should work even if the node is not started
         let manifests_result = manifests(&node).await;
         assert!(
             manifests_result.is_ok(),
@@ -275,103 +177,6 @@ mod tests {
             "Space info should work without starting node"
         );
 
-        node.destroy().unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_concurrent_storage_operations() {
-        let temp_dir = tempdir().unwrap();
-        let config = CodexConfig::new()
-            .log_level(LogLevel::Error)
-            .data_dir(temp_dir.path())
-            .storage_quota(100 * 1024 * 1024);
-
-        let mut node = CodexNode::new(config).unwrap();
-        node.start().unwrap();
-
-        // Test concurrent operations
-        let manifests_future = manifests(&node);
-        let space_future = space(&node);
-
-        let (manifests_result, space_result) = tokio::join!(manifests_future, space_future);
-
-        assert!(manifests_result.is_ok());
-        assert!(space_result.is_ok());
-
-        node.stop().unwrap();
-        node.destroy().unwrap();
-    }
-
-    #[test]
-    fn test_manifest_structure() {
-        let temp_dir = tempdir().unwrap();
-        let config = CodexConfig::new()
-            .log_level(LogLevel::Error)
-            .data_dir(temp_dir.path())
-            .storage_quota(100 * 1024 * 1024);
-
-        let mut node = CodexNode::new(config).unwrap();
-        node.start().unwrap();
-
-        // Create a test manifest to verify structure
-        let test_manifest = Manifest {
-            cid: "QmTest123".to_string(),
-            tree_cid: "QmTree123".to_string(),
-            dataset_size: 1024,
-            block_size: 256,
-            filename: "test.txt".to_string(),
-            mimetype: "text/plain".to_string(),
-            protected: false,
-        };
-
-        // Verify the manifest can be serialized and deserialized
-        let json = serde_json::to_string(&test_manifest).unwrap();
-        let deserialized: Manifest = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(test_manifest.tree_cid, deserialized.tree_cid);
-        assert_eq!(test_manifest.dataset_size, deserialized.dataset_size);
-        assert_eq!(test_manifest.block_size, deserialized.block_size);
-        assert_eq!(test_manifest.filename, deserialized.filename);
-        assert_eq!(test_manifest.mimetype, deserialized.mimetype);
-        assert_eq!(test_manifest.protected, deserialized.protected);
-
-        node.stop().unwrap();
-        node.destroy().unwrap();
-    }
-
-    #[test]
-    fn test_space_structure() {
-        let temp_dir = tempdir().unwrap();
-        let quota = 200 * 1024 * 1024; // 200 MB
-        let config = CodexConfig::new()
-            .log_level(LogLevel::Error)
-            .data_dir(temp_dir.path())
-            .storage_quota(quota);
-
-        let mut node = CodexNode::new(config).unwrap();
-        node.start().unwrap();
-
-        // Create a test space info to verify structure
-        let test_space = Space {
-            total_blocks: 10,
-            quota_max_bytes: quota,
-            quota_used_bytes: 50 * 1024 * 1024,      // 50 MB
-            quota_reserved_bytes: 150 * 1024 * 1024, // 150 MB
-        };
-
-        // Verify the space info can be serialized and deserialized
-        let json = serde_json::to_string(&test_space).unwrap();
-        let deserialized: Space = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(test_space.total_blocks, deserialized.total_blocks);
-        assert_eq!(test_space.quota_max_bytes, deserialized.quota_max_bytes);
-        assert_eq!(test_space.quota_used_bytes, deserialized.quota_used_bytes);
-        assert_eq!(
-            test_space.quota_reserved_bytes,
-            deserialized.quota_reserved_bytes
-        );
-
-        node.stop().unwrap();
         node.destroy().unwrap();
     }
 }

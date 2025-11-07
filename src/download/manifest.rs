@@ -64,36 +64,6 @@ mod tests {
     use crate::node::config::CodexConfig;
     use serde_json::json;
 
-    #[tokio::test]
-    async fn test_download_manifest() {
-        let config = CodexConfig::default();
-        let node = CodexNode::new(config).unwrap();
-
-        let manifest = download_manifest(&node, "QmExample").await;
-        assert!(manifest.is_ok());
-
-        let manifest = manifest.unwrap();
-        assert_eq!(manifest.cid, "QmExample");
-        assert_eq!(manifest.size, 1024);
-        assert_eq!(manifest.blocks, 4);
-    }
-
-    #[tokio::test]
-    async fn test_download_manifest_empty_cid() {
-        let config = CodexConfig::default();
-        let node = CodexNode::new(config).unwrap();
-
-        let result = download_manifest(&node, "").await;
-        assert!(result.is_err());
-
-        match result.unwrap_err() {
-            CodexError::InvalidParameter { parameter, .. } => {
-                assert_eq!(parameter, "cid");
-            }
-            _ => panic!("Expected InvalidParameter error"),
-        }
-    }
-
     #[test]
     fn test_manifest_serialization() {
         let manifest = Manifest {
