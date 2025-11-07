@@ -15,7 +15,7 @@ fn determine_linking_mode() -> LinkingMode {
     match (static_enabled, dynamic_enabled) {
         (true, false) => LinkingMode::Static,
         (false, true) => LinkingMode::Dynamic,
-        (false, false) => LinkingMode::Static, // Default
+        (false, false) => LinkingMode::Dynamic,
         (true, true) => {
             panic!("Cannot enable both 'static-linking' and 'dynamic-linking' features simultaneously. Please choose one.");
         }
@@ -115,14 +115,13 @@ fn ensure_libcodex(nim_codex_dir: &PathBuf, lib_dir: &PathBuf, linking_mode: Lin
 
 /// Link static library and its dependencies
 fn link_static_library(nim_codex_dir: &PathBuf, _lib_dir: &PathBuf) {
-    // Link against additional required static libraries FIRST
+    // Set up all library search paths first
     println!(
         "cargo:rustc-link-search=native={}",
         nim_codex_dir
             .join("vendor/nim-libbacktrace/vendor/libbacktrace-upstream/.libs")
             .display()
     );
-    println!("cargo:rustc-link-lib=static=backtrace");
 
     println!(
         "cargo:rustc-link-search=native={}",
@@ -130,7 +129,6 @@ fn link_static_library(nim_codex_dir: &PathBuf, _lib_dir: &PathBuf) {
             .join("vendor/nim-circom-compat/vendor/circom-compat-ffi/target/release")
             .display()
     );
-    println!("cargo:rustc-link-lib=static=circom_compat_ffi");
 
     println!(
         "cargo:rustc-link-search=native={}",
@@ -138,7 +136,6 @@ fn link_static_library(nim_codex_dir: &PathBuf, _lib_dir: &PathBuf) {
             .join("vendor/nim-nat-traversal/vendor/libnatpmp-upstream")
             .display()
     );
-    println!("cargo:rustc-link-lib=static=natpmp");
 
     println!(
         "cargo:rustc-link-search=native={}",
@@ -146,7 +143,6 @@ fn link_static_library(nim_codex_dir: &PathBuf, _lib_dir: &PathBuf) {
             .join("vendor/nim-nat-traversal/vendor/miniupnp/miniupnpc/build")
             .display()
     );
-    println!("cargo:rustc-link-lib=static=miniupnpc");
 
     println!(
         "cargo:rustc-link-search=native={}",
@@ -154,7 +150,6 @@ fn link_static_library(nim_codex_dir: &PathBuf, _lib_dir: &PathBuf) {
             .join("vendor/nim-libbacktrace/install/usr/lib")
             .display()
     );
-    println!("cargo:rustc-link-lib=static=backtracenim");
 
     println!(
         "cargo:rustc-link-search=native={}",
@@ -162,10 +157,23 @@ fn link_static_library(nim_codex_dir: &PathBuf, _lib_dir: &PathBuf) {
             .join("nimcache/release/libcodex/vendor_leopard")
             .display()
     );
+
+    // Use a custom linker script to handle the grouping properly
+    // This avoids issues with Rust's automatic -Bstatic/-Bdynamic insertion
+    println!("cargo:rustc-link-arg=-Wl,--whole-archive");
+
+    // Link against additional required static libraries FIRST
+    println!("cargo:rustc-link-lib=static=backtrace");
+    println!("cargo:rustc-link-lib=static=circom_compat_ffi");
+    println!("cargo:rustc-link-lib=static=natpmp");
+    println!("cargo:rustc-link-lib=static=miniupnpc");
+    println!("cargo:rustc-link-lib=static=backtracenim");
     println!("cargo:rustc-link-lib=static=libleopard");
 
-    // Now link against libcodex
+    // Link against libcodex LAST (it depends on all the above)
     println!("cargo:rustc-link-lib=static=codex");
+
+    println!("cargo:rustc-link-arg=-Wl,--no-whole-archive");
 
     // Link against C++ standard library for libcodex C++ dependencies
     println!("cargo:rustc-link-lib=stdc++");
@@ -187,7 +195,11 @@ fn link_static_library(nim_codex_dir: &PathBuf, _lib_dir: &PathBuf) {
 /// Link dynamic library
 fn link_dynamic_library(lib_dir: &PathBuf) {
     println!("cargo:rustc-link-lib=dylib=codex");
-    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_dir.display());
+
+    // Add rpath so the library can be found without LD_LIBRARY_PATH
+    let lib_dir_abs = std::fs::canonicalize(lib_dir).unwrap_or_else(|_| lib_dir.to_path_buf());
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_dir_abs.display());
+
     println!("cargo:warning=Using dynamic libcodex");
 }
 
