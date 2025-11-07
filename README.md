@@ -73,3 +73,7 @@ cargo build --features static-linking
 [dependencies]
 codex-rust-bindings = { version = "0.1", features = ["static-linking"] }
 ```
+
+## License
+
+[MIT](./LICENSE)
