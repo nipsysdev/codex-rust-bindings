@@ -1,6 +1,6 @@
-//! P2P networking example for the Codex Rust bindings
+//! P2P networking integration test for the Codex Rust bindings
 //!
-//! This example demonstrates how to use P2P operations:
+//! This test demonstrates how to use P2P operations:
 //! - Connect to peers
 //! - Get peer information
 //! - Debug peer connections
@@ -8,15 +8,15 @@
 use codex_rust_bindings::{CodexConfig, CodexNode, LogLevel};
 use tempfile::tempdir;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::test]
+async fn test_p2p_networking() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
     env_logger::init();
 
-    println!("Codex Rust Bindings - P2P Networking Example");
-    println!("=============================================");
+    println!("Codex Rust Bindings - P2P Networking Test");
+    println!("==========================================");
 
-    // Create a temporary directory for our example
+    // Create a temporary directory for our test
     let temp_dir = tempdir()?;
 
     // Create a minimal Codex configuration
@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Get our own peer ID using the P2P function
     let our_peer_id = codex_rust_bindings::get_peer_id(&node).await?;
     println!("Peer ID from P2P function: {}", our_peer_id);
-    assert_eq!(peer_id, our_peer_id);
+    assert_eq!(peer_id, our_peer_id, "Peer IDs should match");
 
     // Test connecting to a peer (this will likely fail since it's a test peer)
     println!("\n=== Testing Peer Connection ===");
@@ -121,26 +121,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Empty peer ID for connection
     println!("Testing connection with empty peer ID...");
     let empty_peer_result = codex_rust_bindings::connect(&node, "", &test_addresses).await;
-    match empty_peer_result {
-        Ok(_) => println!("  ✗ Unexpectedly succeeded with empty peer ID"),
-        Err(e) => println!("  ✓ Correctly failed with empty peer ID: {}", e),
-    }
+    assert!(empty_peer_result.is_err(), "Should fail with empty peer ID");
+    println!("  ✓ Correctly failed with empty peer ID");
 
     // Empty addresses for connection
     println!("Testing connection with empty addresses...");
     let empty_addr_result = codex_rust_bindings::connect(&node, test_peer_id, &[]).await;
-    match empty_addr_result {
-        Ok(_) => println!("  ✗ Unexpectedly succeeded with empty addresses"),
-        Err(e) => println!("  ✓ Correctly failed with empty addresses: {}", e),
-    }
+    assert!(
+        empty_addr_result.is_err(),
+        "Should fail with empty addresses"
+    );
+    println!("  ✓ Correctly failed with empty addresses");
 
     // Empty peer ID for peer info
     println!("Testing peer info with empty peer ID...");
     let empty_info_result = codex_rust_bindings::get_peer_info(&node, "").await;
-    match empty_info_result {
-        Ok(_) => println!("  ✗ Unexpectedly succeeded with empty peer ID"),
-        Err(e) => println!("  ✓ Correctly failed with empty peer ID: {}", e),
-    }
+    assert!(empty_info_result.is_err(), "Should fail with empty peer ID");
+    println!("  ✓ Correctly failed with empty peer ID");
 
     // Test concurrent P2P operations
     println!("\n=== Testing Concurrent P2P Operations ===");
@@ -152,10 +149,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::join!(peer_id_future1, peer_info_future1, peer_info_future2);
 
     println!("Concurrent operations results:");
-    match peer_id_result {
-        Ok(id) => println!("  ✓ get_peer_id: {}", id),
-        Err(e) => println!("  ✗ get_peer_id failed: {}", e),
-    }
+    assert!(peer_id_result.is_ok(), "get_peer_id should succeed");
+    println!("  ✓ get_peer_id: {}", peer_id_result.unwrap());
 
     match peer_info_result1 {
         Ok(_) => println!("  ✓ get_peer_info (peer1): succeeded"),
@@ -173,6 +168,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     node.destroy()?;
     println!("Node stopped and destroyed.");
 
-    println!("\nP2P networking example completed successfully!");
+    println!("\nP2P networking test completed successfully!");
     Ok(())
 }

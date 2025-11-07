@@ -1,6 +1,6 @@
-//! Chunk operations example for the Codex Rust bindings
+//! Chunk operations integration test for the Codex Rust bindings
 //!
-//! This example demonstrates how to use chunk-based upload and download:
+//! This test demonstrates how to use chunk-based upload and download:
 //! - Upload using chunk-by-chunk approach
 //! - Download using chunk-by-chunk approach
 //! - Handle resumable uploads and downloads
@@ -11,15 +11,15 @@ use codex_rust_bindings::{
 };
 use tempfile::tempdir;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::test]
+async fn test_chunk_operations() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
     env_logger::init();
 
-    println!("Codex Rust Bindings - Chunk Operations Example");
-    println!("=============================================");
+    println!("Codex Rust Bindings - Chunk Operations Test");
+    println!("===========================================");
 
-    // Create a temporary directory for our example
+    // Create a temporary directory for our test
     let temp_dir = tempdir()?;
 
     // Create a minimal Codex configuration
@@ -78,6 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Verify the content exists
     println!("\n=== Verifying Upload ===");
     let exists = codex_rust_bindings::exists(&node, &cid).await?;
+    assert!(exists, "Content should exist after upload");
     println!("Content exists: {}", exists);
 
     // Get manifest information
@@ -144,31 +145,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Expected data size: {} bytes", expected_data.len());
     println!("Downloaded data size: {} bytes", downloaded_data.len());
 
-    if downloaded_data.len() >= expected_data.len() {
-        let downloaded_str = String::from_utf8_lossy(&downloaded_data[..expected_data.len()]);
-        let expected_str = String::from_utf8_lossy(&expected_data);
+    assert!(
+        downloaded_data.len() >= expected_data.len(),
+        "Should download at least expected data size"
+    );
 
-        if downloaded_str == expected_str {
-            println!("✓ Downloaded data matches expected data!");
-            println!(
-                "  Content: {}",
-                &downloaded_str[..std::cmp::min(50, downloaded_str.len())]
-            );
-            if downloaded_str.len() > 50 {
-                println!("  ...");
-            }
-        } else {
-            println!("✗ Downloaded data doesn't match expected data");
-            println!("  Expected: {}", expected_str);
-            println!("  Got: {}", downloaded_str);
-        }
-    } else {
-        println!(
-            "⚠ Incomplete download - got {} bytes, expected {} bytes",
-            downloaded_data.len(),
-            expected_data.len()
-        );
-    }
+    let downloaded_str = String::from_utf8_lossy(&downloaded_data[..expected_data.len()]);
+    let expected_str = String::from_utf8_lossy(&expected_data);
+
+    assert_eq!(
+        downloaded_str, expected_str,
+        "Downloaded data should match expected data"
+    );
+    println!("✓ Downloaded data matches expected data!");
 
     // Test upload cancellation
     println!("\n=== Testing Upload Cancellation ===");
@@ -192,10 +181,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Try to finalize - should fail
     println!("Attempting to finalize canceled upload...");
     let finalize_result = upload_finalize(&node, &cancel_session_id).await;
-    match finalize_result {
-        Ok(_) => println!("⚠ Finalize unexpectedly succeeded after cancellation"),
-        Err(e) => println!("✓ Finalize correctly failed after cancellation: {}", e),
-    }
+    assert!(
+        finalize_result.is_err(),
+        "Finalize should fail after cancellation"
+    );
+    println!("✓ Finalize correctly failed after cancellation");
 
     // Test with very small chunks
     println!("\n=== Testing Small Chunks ===");
@@ -234,6 +224,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // List all manifests
     let manifests = codex_rust_bindings::manifests(&node).await?;
     println!("Total manifests: {}", manifests.len());
+    assert!(
+        manifests.len() >= 2,
+        "Should have at least 2 manifests (main test and small chunks)"
+    );
+
     for (i, manifest) in manifests.iter().enumerate() {
         println!(
             "  {}: CID={}, Size={} bytes",
@@ -249,6 +244,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     node.destroy()?;
     println!("Node stopped and destroyed.");
 
-    println!("\nChunk operations example completed successfully!");
+    println!("\nChunk operations test completed successfully!");
     Ok(())
 }

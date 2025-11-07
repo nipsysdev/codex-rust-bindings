@@ -1,6 +1,6 @@
-//! Debug operations example for the Codex Rust bindings
+//! Debug operations integration test for the Codex Rust bindings
 //!
-//! This example demonstrates how to use debug operations:
+//! This test demonstrates how to use debug operations:
 //! - Get node debug information
 //! - Update log levels
 //! - Get peer debug information
@@ -9,15 +9,15 @@ use codex_rust_bindings::debug::LogLevel;
 use codex_rust_bindings::{CodexConfig, CodexNode};
 use tempfile::tempdir;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::test]
+async fn test_debug_operations() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
     env_logger::init();
 
-    println!("Codex Rust Bindings - Debug Operations Example");
-    println!("=============================================");
+    println!("Codex Rust Bindings - Debug Operations Test");
+    println!("===========================================");
 
-    // Create a temporary directory for our example
+    // Create a temporary directory for our test
     let temp_dir = tempdir()?;
 
     // Create a Codex configuration
@@ -143,17 +143,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Test invalid peer ID
     println!("\n=== Testing Invalid Peer ID ===");
     let empty_peer_result = codex_rust_bindings::peer_debug(&node, "");
-    match empty_peer_result {
-        Ok(_) => println!("  ✗ Unexpectedly succeeded with empty peer ID"),
-        Err(e) => println!("  ✓ Correctly failed with empty peer ID: {}", e),
-    }
+    assert!(empty_peer_result.is_err(), "Should fail with empty peer ID");
+    println!("  ✓ Correctly failed with empty peer ID");
 
     // Test whitespace-only peer ID
     let whitespace_peer_result = codex_rust_bindings::peer_debug(&node, "   \t\n   ");
-    match whitespace_peer_result {
-        Ok(_) => println!("  ✗ Unexpectedly succeeded with whitespace-only peer ID"),
-        Err(e) => println!("  ✓ Correctly failed with whitespace-only peer ID: {}", e),
-    }
+    assert!(
+        whitespace_peer_result.is_err(),
+        "Should fail with whitespace-only peer ID"
+    );
+    println!("  ✓ Correctly failed with whitespace-only peer ID");
 
     // Test debug operations without starting node
     println!("\n=== Testing Debug Operations Without Starting Node ===");
@@ -205,16 +204,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     println!("Concurrent operations results:");
-    match debug_result1 {
-        Ok(_) => println!("  ✓ debug (1): succeeded"),
-        Err(e) => println!("  ✗ debug (1) failed: {}", e),
-    }
+    assert!(debug_result1.is_ok(), "debug (1) should succeed");
+    println!("  ✓ debug (1): succeeded");
 
-    match debug_result2 {
-        Ok(_) => println!("  ✓ debug (2): succeeded"),
-        Err(e) => println!("  ✗ debug (2) failed: {}", e),
-    }
+    assert!(debug_result2.is_ok(), "debug (2) should succeed");
+    println!("  ✓ debug (2): succeeded");
 
+    // Peer debug might fail for test peers, that's expected
     match peer_debug_result1 {
         Ok(_) => println!("  ✓ peer_debug (1): succeeded"),
         Err(_) => println!("  ✗ peer_debug (1): failed (expected for test peer)"),
@@ -251,6 +247,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     node.destroy()?;
     println!("Node stopped and destroyed.");
 
-    println!("\nDebug operations example completed successfully!");
+    println!("\nDebug operations test completed successfully!");
     Ok(())
 }

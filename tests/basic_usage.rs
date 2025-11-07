@@ -1,6 +1,6 @@
-//! Basic usage example for the Codex Rust bindings
+//! Basic usage integration test for the Codex Rust bindings
 //!
-//! This example demonstrates how to create a Codex node, start it,
+//! This test demonstrates how to create a Codex node, start it,
 //! upload a file, download it, and then clean up.
 
 use codex_rust_bindings::{
@@ -11,15 +11,15 @@ use std::fs::File;
 use std::io::Write;
 use tempfile::tempdir;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::test]
+async fn test_basic_usage() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
     env_logger::init();
 
-    println!("Codex Rust Bindings - Basic Usage Example");
-    println!("=========================================");
+    println!("Codex Rust Bindings - Basic Usage Test");
+    println!("=====================================");
 
-    // Create a temporary directory for our example
+    // Create a temporary directory for our test
     let temp_dir = tempdir()?;
     let file_path = temp_dir.path().join("example.txt");
     let download_path = temp_dir.path().join("downloaded.txt");
@@ -96,11 +96,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let original_content = std::fs::read_to_string(&file_path)?;
     let downloaded_content = std::fs::read_to_string(&download_path)?;
 
-    if original_content == downloaded_content {
-        println!("✓ Content verification successful!");
-    } else {
-        println!("✗ Content verification failed!");
-    }
+    assert_eq!(
+        original_content, downloaded_content,
+        "Downloaded content should match original"
+    );
+    println!("✓ Content verification successful!");
 
     // Stop and destroy the node
     println!("Stopping Codex node...");
@@ -111,17 +111,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     node.destroy()?;
     println!("Node destroyed.");
 
-    println!("Example completed successfully!");
+    println!("Basic usage test completed successfully!");
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_basic_example() {
-        // This test just ensures the example compiles
-        assert!(true);
-    }
 }

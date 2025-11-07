@@ -1,6 +1,6 @@
-//! Storage management example for the Codex Rust bindings
+//! Storage management integration test for the Codex Rust bindings
 //!
-//! This example demonstrates how to manage storage operations:
+//! This test demonstrates how to manage storage operations:
 //! - List manifests
 //! - Check storage space
 //! - Fetch manifest information
@@ -12,15 +12,15 @@ use std::fs::File;
 use std::io::Write;
 use tempfile::tempdir;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::test]
+async fn test_storage_management() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
     env_logger::init();
 
-    println!("Codex Rust Bindings - Storage Management Example");
-    println!("===============================================");
+    println!("Codex Rust Bindings - Storage Management Test");
+    println!("=============================================");
 
-    // Create a temporary directory for our example
+    // Create a temporary directory for our test
     let temp_dir = tempdir()?;
     let file_path = temp_dir.path().join("test_file.txt");
 
@@ -59,6 +59,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== Initial Manifests ===");
     let manifests = codex_rust_bindings::manifests(&node).await?;
     println!("Number of manifests: {}", manifests.len());
+    assert_eq!(manifests.len(), 0, "Should start with no manifests");
+
     for (i, manifest) in manifests.iter().enumerate() {
         println!(
             "  Manifest {}: CID={}, Size={} bytes",
@@ -86,11 +88,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Check if content exists
     println!("\n=== Checking Content Existence ===");
     let exists = codex_rust_bindings::exists(&node, &upload_result.cid).await?;
+    assert!(exists, "Uploaded content should exist");
     println!("Content exists: {}", exists);
 
     // Check non-existent content (using a valid CID format that doesn't exist)
     let non_existent_cid = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi";
     let non_existent = codex_rust_bindings::exists(&node, non_existent_cid).await?;
+    assert!(!non_existent, "Non-existent content should not exist");
     println!("Non-existent content exists: {}", non_existent);
 
     // Fetch manifest information
@@ -107,6 +111,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== Manifests After Upload ===");
     let manifests = codex_rust_bindings::manifests(&node).await?;
     println!("Number of manifests: {}", manifests.len());
+    assert_eq!(manifests.len(), 1, "Should have 1 manifest after upload");
+
     for (i, manifest) in manifests.iter().enumerate() {
         println!(
             "  Manifest {}: CID={}, Size={} bytes",
@@ -143,6 +149,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== Manifests After Second Upload ===");
     let manifests = codex_rust_bindings::manifests(&node).await?;
     println!("Number of manifests: {}", manifests.len());
+    assert_eq!(
+        manifests.len(),
+        2,
+        "Should have 2 manifests after second upload"
+    );
+
     for (i, manifest) in manifests.iter().enumerate() {
         println!(
             "  Manifest {}: CID={}, Size={} bytes",
@@ -158,12 +170,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Check if deleted content still exists
     println!("\n=== Checking Deleted Content ===");
     let exists_after_delete = codex_rust_bindings::exists(&node, &upload_result.cid).await?;
+    assert!(!exists_after_delete, "Deleted content should not exist");
     println!("Deleted content exists: {}", exists_after_delete);
 
     // List manifests after deletion
     println!("\n=== Manifests After Deletion ===");
     let manifests = codex_rust_bindings::manifests(&node).await?;
     println!("Number of manifests: {}", manifests.len());
+    assert_eq!(manifests.len(), 1, "Should have 1 manifest after deletion");
+
     for (i, manifest) in manifests.iter().enumerate() {
         println!(
             "  Manifest {}: CID={}, Size={} bytes",
@@ -188,6 +203,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     node.destroy()?;
     println!("Node stopped and destroyed.");
 
-    println!("\nStorage management example completed successfully!");
+    println!("\nStorage management test completed successfully!");
     Ok(())
 }
