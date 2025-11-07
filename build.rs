@@ -1,5 +1,58 @@
 use std::env;
 use std::path::PathBuf;
+use std::process::Command;
+
+/// Ensure git submodules are initialized and updated
+fn ensure_submodules(nim_codex_dir: &PathBuf) {
+    if !nim_codex_dir.exists() {
+        println!("cargo:warning=Initializing git submodules...");
+        let status = Command::new("git")
+            .args(&["submodule", "update", "--init", "--recursive"])
+            .status()
+            .expect("Failed to execute git command. Make sure git is installed and in PATH.");
+
+        if !status.success() {
+            panic!("Failed to initialize git submodules");
+        }
+        println!("cargo:warning=Git submodules initialized successfully");
+    }
+}
+
+/// Ensure libcodex is built
+fn ensure_libcodex(nim_codex_dir: &PathBuf, lib_dir: &PathBuf) {
+    // Check if libcodex already exists
+    if lib_dir.join("libcodex.a").exists() || lib_dir.join("libcodex.so").exists() {
+        return;
+    }
+
+    println!("cargo:warning=Building libcodex...");
+
+    // Get CODEX_LIB_PARAMS from environment if set
+    let codex_params = env::var("CODEX_LIB_PARAMS").unwrap_or_default();
+
+    let mut make_cmd = Command::new("make");
+    make_cmd.args(&[
+        "-C",
+        &nim_codex_dir.to_string_lossy(),
+        "STATIC=1",
+        "libcodex",
+    ]);
+
+    // Add custom parameters if provided
+    if !codex_params.is_empty() {
+        make_cmd.env("CODEX_LIB_PARAMS", &codex_params);
+    }
+
+    let status = make_cmd
+        .status()
+        .expect("Failed to execute make command. Make sure make is installed and in PATH.");
+
+    if !status.success() {
+        panic!("Failed to build libcodex");
+    }
+
+    println!("cargo:warning=libcodex built successfully");
+}
 
 fn main() {
     // Paths for nim-codex submodule
@@ -7,16 +60,18 @@ fn main() {
     let lib_dir = nim_codex_dir.join("build");
     let include_dir = nim_codex_dir.join("nimcache/release/libcodex");
 
-    // Check if submodule exists
-    if !nim_codex_dir.exists() {
-        panic!(
-            "nim-codex submodule not found. Please run 'git submodule update --init --recursive'"
-        );
-    }
+    // Initialize git submodules if needed
+    ensure_submodules(&nim_codex_dir);
 
     // Build libcodex if it doesn't exist
-    if !lib_dir.join("libcodex.a").exists() && !lib_dir.join("libcodex.so").exists() {
-        println!("cargo:warning=libcodex not found. Please run 'make libcodex' first");
+    ensure_libcodex(&nim_codex_dir, &lib_dir);
+
+    // Verify include directory exists
+    if !include_dir.exists() {
+        panic!(
+            "Include directory not found at {}. Please ensure libcodex was built successfully.",
+            include_dir.display()
+        );
     }
 
     // Tell cargo to look for libraries in the build directory

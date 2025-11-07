@@ -16,35 +16,100 @@ For an example on how to use this package, please take a look at our [examples](
 
 ## Development
 
-To build the required dependencies for this module, the `make` command needs to be executed.
-If you are integrating this module into another project via `cargo add`, ensure that you navigate
-to the `codex-rust-bindings` module directory and run the `make` commands.
+### Prerequisites
 
-### Steps to install
+Make sure your system has the [prerequisites](https://github.com/codex-storage/nim-codex) to run a local Codex node, including:
 
-Follow these steps to install and set up the module:
+- Rust and Cargo
+- Git
+- Make (for building libcodex)
+- Nim compiler (automatically handled by the build process)
 
-1. Make sure your system has the [prerequisites](https://github.com/codex-storage/nim-codex) to run a local Codex node.
+### Building
 
-2. Fetch the dependencies:
+The project uses Cargo's build system with automatic dependency management. The build process automatically handles git submodules and libcodex compilation.
 
-   ```
-   make update
-   ```
+#### Quick Start
 
-3. Build the library:
-   ```
-   make libcodex
-   ```
-
-You can pass flags to the Codex building step by using `CODEX_LIB_PARAMS`. For example,
-if you want to enable debug API for peers, you can build the library using:
-
-```
-CODEX_LIB_PARAMS="-d:codex_enable_api_debug_peers=true" make libcodex
+```bash
+cargo build --release
 ```
 
-Now the module is ready for use in your project.
+This will automatically:
+
+1. Initialize git submodules if needed
+2. Build libcodex if not already built
+3. Compile the Rust bindings
+
+#### Build Commands
+
+```bash
+# Build with debug information
+cargo build
+
+# Build with all features
+cargo build --all-features
+
+# Run tests
+cargo test
+
+# Run tests with all features
+cargo test --all-features
+
+# Run examples
+cargo run --example basic_usage
+
+# Generate documentation
+cargo doc --no-deps
+
+# Clean build artifacts
+cargo clean
+```
+
+#### Convenient Aliases
+
+The project includes convenient Cargo aliases defined in `.cargo/config.toml`:
+
+```bash
+# Build with all features
+cargo build-all
+
+# Run all tests with all features
+cargo test-all
+
+# Run code quality checks
+cargo check
+
+# Prepare for release
+cargo release-prep
+
+# Clean everything including submodules
+cargo clean-all
+```
+
+#### Integration Tests
+
+For integration tests, you can use either the direct command or the alias:
+
+```bash
+# Direct command
+cargo test --test integration_test
+
+# Using the alias
+cargo test-integration
+```
+
+### Custom Build Flags
+
+You can pass custom flags to the libcodex build process using the `CODEX_LIB_PARAMS` environment variable:
+
+```bash
+# Enable debug API for peers
+CODEX_LIB_PARAMS="-d:codex_enable_api_debug_peers=true" cargo build --release
+
+# Other custom flags
+CODEX_LIB_PARAMS="-d:your_flag=true" cargo build
+```
 
 The release process is defined [here](./RELEASE.md).
 

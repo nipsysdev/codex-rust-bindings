@@ -1,0 +1,24 @@
+[alias]
+# Build aliases
+build-all = "build --all-features"
+build-debug = "build"
+
+# Test aliases
+test-all = "test --all-features"
+test-integration = "test --test integration_test"
+
+# Example aliases
+example = "run --example basic_usage"
+
+# Documentation aliases
+docs = "doc --no-deps"
+
+# Code quality aliases
+check = ["fmt", "clippy", "test"]
+check-all = ["fmt", "clippy -- -D warnings", "test-all"]
+
+# Release preparation
+release-prep = ["check-all", "build-all"]
+
+# Clean with submodule cleanup
+clean-all = ["clean", "run --bin clean-submodules"]
