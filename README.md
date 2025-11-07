@@ -103,27 +103,19 @@ CODEX_LIB_PARAMS="-d:your_flag=true" cargo build
 
 This crate supports two linking modes via Cargo features:
 
-### Static Linking (Default)
+### Dynamic Linking (Default)
 
 ```bash
 cargo build
 # or explicitly
-cargo build --features static-linking
-```
-
-- Self-contained binary
-- No runtime dependencies
-- Recommended for production
-
-### Dynamic Linking
-
-```bash
 cargo build --features dynamic-linking
 ```
 
-- Smaller binary size
-- Requires libcodex.so at runtime
-- Useful for development
+### Static Linking (Default)
+
+```bash
+cargo build --features static-linking
+```
 
 ### In Dependencies
 
@@ -131,7 +123,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-codex-rust-bindings = { version = "0.1", features = ["dynamic-linking"] }
+codex-rust-bindings = { version = "0.1", features = ["static-linking"] }
 ```
 
 ## API
