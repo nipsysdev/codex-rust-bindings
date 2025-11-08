@@ -45,3 +45,6 @@ src/ffi/bindings.rs
 
 # Debug files
 *.debug
+
+# LLM
+.kilocode
