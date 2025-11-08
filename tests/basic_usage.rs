@@ -14,7 +14,7 @@ use tempfile::tempdir;
 #[tokio::test]
 async fn test_basic_usage() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
-    env_logger::init();
+    let _ = env_logger::try_init();
 
     println!("Codex Rust Bindings - Basic Usage Test");
     println!("=====================================");
@@ -37,7 +37,8 @@ async fn test_basic_usage() -> Result<(), Box<dyn std::error::Error>> {
         .log_level(LogLevel::Info)
         .data_dir(temp_dir.path().join("codex_data"))
         .storage_quota(100 * 1024 * 1024) // 100 MB
-        .max_peers(50);
+        .max_peers(50)
+        .discovery_port(8090);
 
     // Create a new Codex node
     println!("Creating Codex node...");

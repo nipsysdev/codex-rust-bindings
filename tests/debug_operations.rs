@@ -12,7 +12,7 @@ use tempfile::tempdir;
 #[tokio::test]
 async fn test_debug_operations() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
-    env_logger::init();
+    let _ = env_logger::try_init();
 
     println!("Codex Rust Bindings - Debug Operations Test");
     println!("===========================================");
@@ -25,7 +25,8 @@ async fn test_debug_operations() -> Result<(), Box<dyn std::error::Error>> {
     let config = CodexConfig::new()
         .log_level(codex_rust_bindings::LogLevel::Info)
         .data_dir(temp_dir.path().join("codex_data"))
-        .storage_quota(100 * 1024 * 1024); // 100 MB
+        .storage_quota(100 * 1024 * 1024) // 100 MB
+        .discovery_port(8095);
 
     // Create and start a Codex node
     println!("Creating and starting Codex node...");
@@ -158,7 +159,8 @@ async fn test_debug_operations() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== Testing Debug Operations Without Starting Node ===");
     let config2 = CodexConfig::new()
         .log_level(codex_rust_bindings::LogLevel::Error)
-        .data_dir(temp_dir.path().join("codex_data2"));
+        .data_dir(temp_dir.path().join("codex_data2"))
+        .discovery_port(8096);
 
     let node2 = CodexNode::new(config2)?;
     // Don't start the node

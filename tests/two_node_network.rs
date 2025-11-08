@@ -17,7 +17,7 @@ use tempfile::tempdir;
 #[tokio::test]
 async fn test_two_node_network() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
-    env_logger::init();
+    let _ = env_logger::try_init();
 
     println!("Codex Rust Bindings - Two-Node Network Test");
     println!("============================================");
@@ -48,7 +48,7 @@ async fn test_two_node_network() -> Result<(), Box<dyn std::error::Error>> {
         .data_dir(&node1_dir)
         .storage_quota(100 * 1024 * 1024) // 100 MB
         .max_peers(50)
-        .discovery_port(8090)
+        .discovery_port(8092)
         .listen_addrs(vec![
             "/ip4/127.0.0.1/tcp/0".to_string(),
             "/ip4/0.0.0.0/tcp/0".to_string(),
@@ -71,7 +71,7 @@ async fn test_two_node_network() -> Result<(), Box<dyn std::error::Error>> {
         .data_dir(&node2_dir)
         .storage_quota(100 * 1024 * 1024) // 100 MB
         .max_peers(50)
-        .discovery_port(8091);
+        .discovery_port(8093);
 
     // Manually set listen addresses since builder method doesn't exist
     node2_config.listen_addrs = vec![

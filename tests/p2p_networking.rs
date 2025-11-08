@@ -11,7 +11,7 @@ use tempfile::tempdir;
 #[tokio::test]
 async fn test_p2p_networking() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
-    env_logger::init();
+    let _ = env_logger::try_init();
 
     println!("Codex Rust Bindings - P2P Networking Test");
     println!("==========================================");
@@ -25,7 +25,8 @@ async fn test_p2p_networking() -> Result<(), Box<dyn std::error::Error>> {
         .log_level(LogLevel::Error)
         .data_dir(temp_dir.path().join("codex_data"))
         .max_peers(50)
-        .block_retries(3000);
+        .block_retries(3000)
+        .discovery_port(8091);
 
     // Create and start a Codex node
     println!("Creating and starting Codex node...");
