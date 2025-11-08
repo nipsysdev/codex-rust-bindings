@@ -26,7 +26,7 @@ futures = "0.3"
 
 [dependencies.tokio]
 version = "1"
-features = ["full"]
+features = ["macros", "io-util"]
 optional = true
 
 [build-dependencies]
@@ -38,7 +38,7 @@ cc = "1.2"
 tempfile = "3.23"
 tokio-test = "0.4"
 env_logger = "0.10"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["macros", "io-util"] }
 
 
 [features]
