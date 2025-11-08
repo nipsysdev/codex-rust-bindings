@@ -1,2 +1,4 @@
 [alias]
-test-integration = "test --test basic_usage --test chunk_operations --test debug_operations --test p2p_networking --test storage_management --test two_node_network"
+test-unit = "test --lib"
+test-integration = "test --test mod"
+test-doc = "test --doc"

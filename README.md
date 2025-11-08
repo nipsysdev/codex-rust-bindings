@@ -27,6 +27,8 @@ Make sure your system has the [prerequisites](https://github.com/codex-storage/n
 
 ```bash
 cargo build --release
+# or, for debug
+cargo build
 ```
 
 This will automatically:
@@ -38,14 +40,17 @@ This will automatically:
 ### Other Cargo Commands
 
 ```bash
-# Build with debug information
-cargo build
-
-# Run unit tests
+# Run all tests
 cargo test
 
-# Run integration tests (sequentially)
+# Run unit tests
+cargo test-unit
+
+# Run integration tests
 cargo test-integration
+
+# Run doctests
+cargo test-doc
 ```
 
 ## Linking Modes
