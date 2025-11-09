@@ -2,6 +2,20 @@ use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 
+/// Check if required tools are available
+fn check_required_tools() {
+    let tools = ["git", "make"];
+    for tool in &tools {
+        if let Err(_) = Command::new(tool).arg("--version").output() {
+            panic!(
+                "Required tool '{}' is not installed or not in PATH. Please install it and try again.",
+                tool
+            );
+        }
+    }
+    println!("All required tools are available");
+}
+
 #[derive(Debug, Clone, Copy)]
 enum LinkingMode {
     Static,
@@ -22,22 +36,36 @@ fn determine_linking_mode() -> LinkingMode {
     }
 }
 
-/// Ensure git submodules are initialized and updated
-fn ensure_submodules(nim_codex_dir: &PathBuf) {
-    if !nim_codex_dir.exists() {
-        let status = Command::new("git")
-            .args(&["submodule", "update", "--init", "--recursive"])
-            .status()
-            .expect("Failed to execute git command. Make sure git is installed and in PATH.");
+/// Clone nim-codex from GitHub to the specified directory
+fn clone_nim_codex(target_dir: &PathBuf) {
+    println!("Cloning nim-codex repository...");
 
-        if !status.success() {
-            panic!("Failed to initialize git submodules");
-        }
+    let status = Command::new("git")
+        .args(&[
+            "clone",
+            "--branch",
+            "feat/c-binding",
+            "--recurse-submodules",
+            "https://github.com/nipsysdev/nim-codex",
+            &target_dir.to_string_lossy(),
+        ])
+        .status()
+        .expect("Failed to execute git clone. Make sure git is installed and in PATH.");
+
+    if !status.success() {
+        panic!(
+            "Failed to clone nim-codex repository from https://github.com/nipsysdev/nim-codex (branch: feat/c-binding). \
+             Please check your internet connection and repository access."
+        );
     }
+
+    println!("Successfully cloned nim-codex");
 }
 
 /// Build libcodex with static linking
 fn build_libcodex_static(nim_codex_dir: &PathBuf) {
+    println!("Building libcodex with static linking...");
+
     // Get CODEX_LIB_PARAMS from environment if set
     let codex_params = env::var("CODEX_LIB_PARAMS").unwrap_or_default();
 
@@ -54,13 +82,41 @@ fn build_libcodex_static(nim_codex_dir: &PathBuf) {
         make_cmd.env("CODEX_LIB_PARAMS", &codex_params);
     }
 
-    let status = make_cmd
-        .status()
+    // Set environment variables for better build experience
+    make_cmd.env("V", "1"); // Verbose output
+    make_cmd.env("USE_SYSTEM_NIM", "0"); // Don't use system Nim, build from source
+
+    println!("Running make command to build libcodex (this may take several minutes)...");
+
+    let output = make_cmd
+        .output()
         .expect("Failed to execute make command. Make sure make is installed and in PATH.");
 
-    if !status.success() {
-        panic!("Failed to build libcodex with static linking");
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        eprintln!("Build failed with stderr:");
+        eprintln!("{}", stderr);
+        eprintln!("Build stdout:");
+        eprintln!("{}", stdout);
+
+        panic!(
+            "Failed to build libcodex with static linking. This could be due to:\n\
+             1. Missing build dependencies (C compiler, make, git)\n\
+             2. Network issues during repository cloning\n\
+             3. Insufficient disk space or memory\n\
+             4. Build timeout in CI environments\n\
+             \n\
+             For troubleshooting, try building manually:\n\
+             cd {:?}\n\
+             make deps\n\
+             make STATIC=1 libcodex",
+            nim_codex_dir
+        );
     }
+
+    println!("Successfully built libcodex (static)");
 }
 
 /// Build libcodex with dynamic linking
@@ -81,8 +137,15 @@ fn build_libcodex_dynamic(nim_codex_dir: &PathBuf) {
         .expect("Failed to execute make command. Make sure make is installed and in PATH.");
 
     if !status.success() {
-        panic!("Failed to build libcodex with dynamic linking");
+        panic!(
+            "Failed to build libcodex with dynamic linking. Please ensure:\n\
+             1. Nim compiler is installed and in PATH\n\
+             2. All build dependencies are available\n\
+             3. The nim-codex repository is complete and not corrupted"
+        );
     }
+
+    println!("Successfully built libcodex (dynamic)");
 }
 
 /// Ensure libcodex is built (check if it exists)
@@ -94,6 +157,7 @@ fn ensure_libcodex(nim_codex_dir: &PathBuf, lib_dir: &PathBuf, linking_mode: Lin
     };
 
     if lib_exists {
+        println!("libcodex already built, skipping build step");
         return;
     }
 
@@ -190,12 +254,20 @@ fn link_dynamic_library(lib_dir: &PathBuf) {
 }
 
 fn main() {
+    // Check for required tools first
+    check_required_tools();
+
     let linking_mode = determine_linking_mode();
-    let nim_codex_dir = PathBuf::from("vendor/nim-codex");
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+
+    // Always clone nim-codex to OUT_DIR
+    let nim_codex_dir = out_dir.join("nim-codex");
+    if !nim_codex_dir.exists() {
+        clone_nim_codex(&nim_codex_dir);
+    }
+
     let lib_dir = nim_codex_dir.join("build");
     let include_dir = nim_codex_dir.join("nimcache/release/libcodex");
-
-    ensure_submodules(&nim_codex_dir);
 
     match linking_mode {
         LinkingMode::Static => {
@@ -211,7 +283,43 @@ fn main() {
     // Tell cargo to look for libraries in the build directory
     println!("cargo:rustc-link-search=native={}", lib_dir.display());
 
+    // Generate a dynamic bridge.h file with the correct paths
+    generate_bridge_h(&include_dir);
     generate_bindings(&include_dir, &nim_codex_dir);
+}
+
+/// Generate a dynamic bridge.h file with the correct include path
+fn generate_bridge_h(include_dir: &PathBuf) {
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let bridge_h_path = out_path.join("bridge.h");
+
+    let bridge_content = format!(
+        r#"#include <stdbool.h>
+#include <stdlib.h>
+
+// Include the generated libcodex header from nimcache
+#include "{}/libcodex.h"
+
+// Ensure we have the necessary types and constants
+#ifndef RET_OK
+#define RET_OK 0
+#define RET_ERR 1
+#define RET_MISSING_CALLBACK 2
+#define RET_PROGRESS 3
+#endif
+
+// Callback function type (should match the one in libcodex.h)
+#ifndef CODEX_CALLBACK
+typedef void (*CodexCallback)(int ret, const char* msg, size_t len, void* userData);
+#define CODEX_CALLBACK
+#endif
+"#,
+        include_dir.display()
+    );
+
+    std::fs::write(&bridge_h_path, bridge_content).expect("Unable to write bridge.h");
+
+    println!("Generated dynamic bridge.h at {}", bridge_h_path.display());
 }
 
 /// Generate Rust bindings from C headers
@@ -224,13 +332,16 @@ fn generate_bindings(include_dir: &PathBuf, nim_codex_dir: &PathBuf) {
         );
     }
 
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let bridge_h_path = out_path.join("bridge.h");
+
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
     // the resulting bindings.
     let bindings = bindgen::Builder::default()
         // The input header we would like to generate
         // bindings for.
-        .header("src/bridge.h")
+        .header(bridge_h_path.to_str().expect("Invalid path"))
         // Add include path for libcodex headers
         .clang_arg(format!("-I{}", include_dir.display()))
         // Add include path for Nim headers
@@ -264,13 +375,12 @@ fn generate_bindings(include_dir: &PathBuf, nim_codex_dir: &PathBuf) {
         .expect("Unable to generate bindings");
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
 
     // Rerun build script if these files change
-    println!("cargo:rerun-if-changed=src/bridge.h");
+    println!("cargo:rerun-if-changed={}", bridge_h_path.display());
     println!(
         "cargo:rerun-if-changed={}",
         include_dir.join("libcodex.h").display()

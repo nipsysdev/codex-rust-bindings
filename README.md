@@ -13,29 +13,33 @@ codex-rust-bindings = "0.1"
 
 For examples on how to use those bindings, please take a look at the [integration tests](./tests/).
 
-## Development
+## Building
 
-### Prerequisites
+### Requirements
 
-Make sure your system has the [prerequisites](https://github.com/codex-storage/nim-codex) to run a local Codex node, including:
+This crate automatically builds the required libcodex library during compilation, so you don't need to install nim-codex separately. However, you will need:
 
-- Rust and Cargo
-- Git
-- Make (for building libcodex)
+- **Rust and Cargo** (for building this crate)
+- **Git** (for cloning the nim-codex repository)
+- **Make** (for building libcodex)
+- **C compiler** (gcc/clang) and **C++ standard library** (libstdc++)
 
-### Building
+Building will automatically:
+
+1. Clone the nim-codex repository and it's submodules (currently using [my fork](https://github.com/nipsysdev/nim-codex/tree/feat/c-binding))
+2. Build the Nim compiler from source
+3. Build libcodex with the Nim compiler
+4. Generate Rust bindings and compile the crate
+
+**Note**: The first build may take 10-20 minutes as it needs to build the Nim compiler from source. Subsequent builds will be much faster.
+
+### Building from source
 
 ```bash
 cargo build --release
 # or, for debug
 cargo build
 ```
-
-This will automatically:
-
-1. Initialize git submodules if needed
-2. Build libcodex if not already built
-3. Compile the Rust bindings
 
 ### Other Cargo Commands
 
@@ -65,7 +69,7 @@ cargo build
 cargo build --features dynamic-linking
 ```
 
-### Static Linking (Default)
+### Static Linking
 
 ```bash
 cargo build --features static-linking

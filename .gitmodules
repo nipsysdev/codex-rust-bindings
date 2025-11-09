@@ -1,4 +1,0 @@
-[submodule "vendor/nim-codex"]
-	path = vendor/nim-codex
-	url = https://github.com/nipsysdev/nim-codex
-	branch = feat/c-binding
