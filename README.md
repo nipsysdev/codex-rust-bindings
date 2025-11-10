@@ -11,7 +11,7 @@ Include in your Cargo project:
 codex-bindings = "0.1"
 ```
 
-For examples on how to use those bindings, please take a look at the [integration tests](./tests/).
+To learn how to use those bindings, take a look at the [example project](https://github.com/nipsysdev/example-codex-rust-bindings) or the [integration tests](./tests/).
 
 ## Building
 
