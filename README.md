@@ -8,7 +8,7 @@ Include in your Cargo project:
 
 ```toml
 [dependencies]
-codex-rust-bindings = "0.1"
+codex-bindings = "0.1"
 ```
 
 For examples on how to use those bindings, please take a look at the [integration tests](./tests/).
@@ -79,7 +79,7 @@ cargo build --features static-linking
 
 ```toml
 [dependencies]
-codex-rust-bindings = { version = "0.1", features = ["static-linking"] }
+codex-bindings = { version = "0.1", features = ["static-linking"] }
 ```
 
 ## License

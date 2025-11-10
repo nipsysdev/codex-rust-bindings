@@ -1,8 +1,8 @@
 [package]
-name = "codex-rust-bindings"
+name = "codex-bindings"
 version = "0.1.0"
 edition = "2021"
-description = "Rust bindings for the Codex library"
+description = "Rust bindings for Codex, the Decentralized Durability Engine"
 license = "MIT"
 repository = "https://github.com/nipsysdev/codex-rust-bindings"
 homepage = "https://codex.storage"
@@ -10,7 +10,7 @@ keywords = ["codex", "storage", "p2p", "distributed"]
 categories = ["api-bindings", "network-programming"]
 
 [lib]
-name = "codex_rust_bindings"
+name = "codex_bindings"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
