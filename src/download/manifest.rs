@@ -32,7 +32,7 @@ pub async fn download_manifest(node: &CodexNode, cid: &str) -> Result<Manifest> 
     // Call the C function with the context pointer directly
     let result = unsafe {
         codex_download_manifest(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_cid,
             Some(c_callback),
             future.context_ptr() as *mut c_void,

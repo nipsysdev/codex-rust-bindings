@@ -161,7 +161,7 @@ pub async fn debug(node: &CodexNode) -> Result<DebugInfo> {
     // Call the C function with the context pointer directly
     let result = unsafe {
         codex_debug(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             Some(c_callback),
             future.context_ptr() as *mut c_void,
         )
@@ -200,7 +200,7 @@ pub async fn update_log_level(node: &CodexNode, log_level: LogLevel) -> Result<(
     // Call the C function with the context pointer directly
     let result = unsafe {
         codex_log_level(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_log_level,
             Some(c_callback),
             future.context_ptr() as *mut c_void,

@@ -38,7 +38,7 @@ pub async fn upload_init(node: &CodexNode, options: &UploadOptions) -> Result<St
     // Call the C function with the context pointer directly
     let result = with_libcodex_lock(|| unsafe {
         codex_upload_init(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_filepath,
             options.chunk_size.unwrap_or(1024 * 1024),
             Some(c_callback),
@@ -96,7 +96,7 @@ pub async fn upload_chunk(node: &CodexNode, session_id: &str, chunk: &[u8]) -> R
     // Call the C function with the context pointer directly
     let result = with_libcodex_lock(|| unsafe {
         codex_upload_chunk(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_session_id,
             chunk.as_ptr() as *mut u8,
             chunk.len(),
@@ -145,7 +145,7 @@ pub async fn upload_finalize(node: &CodexNode, session_id: &str) -> Result<Strin
     // Call the C function with the context pointer directly
     let result = with_libcodex_lock(|| unsafe {
         codex_upload_finalize(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_session_id,
             Some(c_callback),
             future.context_ptr() as *mut c_void,
@@ -192,7 +192,7 @@ pub async fn upload_cancel(node: &CodexNode, session_id: &str) -> Result<()> {
     // Call the C function with the context pointer directly
     let result = with_libcodex_lock(|| unsafe {
         codex_upload_cancel(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_session_id,
             Some(c_callback),
             future.context_ptr() as *mut c_void,

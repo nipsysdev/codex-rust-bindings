@@ -48,7 +48,7 @@ pub async fn connect(node: &CodexNode, peer_id: &str, peer_addresses: &[String])
     // Call the C function with the context pointer directly
     let result = unsafe {
         codex_connect(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_peer_id,
             c_addresses.as_ptr() as *mut *mut c_char,
             c_addresses.len(),

@@ -77,7 +77,7 @@ pub async fn manifests(node: &CodexNode) -> Result<Vec<Manifest>> {
     // Call the C function with the context pointer directly
     let result = unsafe {
         codex_storage_list(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             Some(c_callback),
             future.context_ptr() as *mut c_void,
         )
@@ -126,7 +126,7 @@ pub async fn space(node: &CodexNode) -> Result<Space> {
     // Call the C function with the context pointer directly
     let result = unsafe {
         codex_storage_space(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             Some(c_callback),
             future.context_ptr() as *mut c_void,
         )

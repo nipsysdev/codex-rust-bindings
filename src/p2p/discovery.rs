@@ -36,7 +36,7 @@ pub async fn get_peer_info(node: &CodexNode, peer_id: &str) -> Result<PeerRecord
         // Call the C function with the context pointer directly
         let result = unsafe {
             codex_peer_debug(
-                node.ctx as *mut _,
+                node.ctx() as *mut _,
                 c_peer_id,
                 Some(c_callback),
                 future.context_ptr() as *mut c_void,
@@ -74,7 +74,7 @@ pub async fn get_peer_id(node: &CodexNode) -> Result<String> {
         // Call the C function with the context pointer directly
         let result = unsafe {
             codex_peer_id(
-                node.ctx as *mut _,
+                node.ctx() as *mut _,
                 Some(c_callback),
                 future.context_ptr() as *mut c_void,
             )

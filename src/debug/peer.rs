@@ -36,7 +36,7 @@ pub fn peer_debug(node: &CodexNode, peer_id: &str) -> Result<PeerRecord> {
         // Call the C function with the context pointer directly
         let result = unsafe {
             codex_peer_debug(
-                node.ctx as *mut _,
+                node.ctx() as *mut _,
                 c_peer_id,
                 Some(c_callback),
                 future.context_ptr() as *mut c_void,

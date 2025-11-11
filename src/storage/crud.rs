@@ -34,7 +34,7 @@ pub async fn fetch(node: &CodexNode, cid: &str) -> Result<super::types::Manifest
     // Call the C function with the context pointer directly
     let result = unsafe {
         codex_storage_fetch(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_cid,
             Some(c_callback),
             future.context_ptr() as *mut c_void,
@@ -86,7 +86,7 @@ pub async fn delete(node: &CodexNode, cid: &str) -> Result<()> {
     // Call the C function with the context pointer directly
     let result = unsafe {
         codex_storage_delete(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_cid,
             Some(c_callback),
             future.context_ptr() as *mut c_void,
@@ -134,7 +134,7 @@ pub async fn exists(node: &CodexNode, cid: &str) -> Result<bool> {
     // Call the C function with the context pointer directly
     let result = unsafe {
         codex_storage_exists(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_cid,
             Some(c_callback),
             future.context_ptr() as *mut c_void,

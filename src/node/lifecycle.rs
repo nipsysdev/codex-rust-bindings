@@ -12,11 +12,23 @@ use crate::ffi::{
 use crate::node::config::CodexConfig;
 use libc::c_void;
 use std::ptr;
+use std::sync::{Arc, Mutex};
 
 /// A Codex node that can interact with the Codex network
+///
+/// This struct is thread-safe and can be safely shared across threads.
+/// The underlying C library is not thread-safe, so all operations are
+/// serialized through a global mutex.
+#[derive(Clone)]
 pub struct CodexNode {
+    /// Shared state containing the C context and started flag
+    inner: Arc<Mutex<CodexNodeInner>>,
+}
+
+/// Inner state of CodexNode
+struct CodexNodeInner {
     /// Pointer to the C context
-    pub(crate) ctx: *mut c_void,
+    ctx: *mut c_void,
     /// Whether the node is currently started
     started: bool,
 }
@@ -77,8 +89,10 @@ impl CodexNode {
             let _result = future.wait()?;
 
             Ok(CodexNode {
-                ctx: node_ctx,
-                started: false,
+                inner: Arc::new(Mutex::new(CodexNodeInner {
+                    ctx: node_ctx,
+                    started: false,
+                })),
             })
         })
     }
@@ -102,40 +116,40 @@ impl CodexNode {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn start(&mut self) -> Result<()> {
-        if self.started {
+        let mut inner = self.inner.lock().unwrap();
+        if inner.started {
             return Err(CodexError::node_error("start", "Node is already started"));
         }
 
-        with_libcodex_lock(|| {
-            // Create a callback future for the operation
-            let future = CallbackFuture::new();
+        // Create a callback future for the operation
+        let future = CallbackFuture::new();
 
-            // Call the C function with the context pointer directly
-            let result = unsafe {
-                codex_start(
-                    self.ctx as *mut _,
-                    Some(c_callback),
-                    future.context_ptr() as *mut c_void,
-                )
-            };
+        // Call the C function with the context pointer directly
+        let result = unsafe {
+            codex_start(
+                inner.ctx as *mut _,
+                Some(c_callback),
+                future.context_ptr() as *mut c_void,
+            )
+        };
 
-            if result != 0 {
-                return Err(CodexError::node_error("start", "Failed to start node"));
-            }
+        if result != 0 {
+            return Err(CodexError::node_error("start", "Failed to start node"));
+        }
 
-            // Wait for the operation to complete
-            let _result = future.wait()?;
+        // Wait for the operation to complete
+        let _result = future.wait()?;
 
-            self.started = true;
-            Ok(())
-        })
+        inner.started = true;
+        Ok(())
     }
 
     /// Start the Codex node asynchronously
     ///
     /// This is the async version of `start()`.
-    pub async fn start_async(&mut self) -> Result<()> {
-        if self.started {
+    pub async fn start_async(&self) -> Result<()> {
+        let mut inner = self.inner.lock().unwrap();
+        if inner.started {
             return Err(CodexError::node_error(
                 "start_async",
                 "Node is already started",
@@ -148,7 +162,7 @@ impl CodexNode {
         // Call the C function with the context pointer directly
         let result = unsafe {
             codex_start(
-                self.ctx as *mut _,
+                inner.ctx as *mut _,
                 Some(c_callback),
                 future.context_ptr() as *mut c_void,
             )
@@ -164,7 +178,7 @@ impl CodexNode {
         // Wait for the operation to complete
         let _result = future.await?;
 
-        self.started = true;
+        inner.started = true;
         Ok(())
     }
 
@@ -188,37 +202,37 @@ impl CodexNode {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn stop(&mut self) -> Result<()> {
-        if !self.started {
+        let mut inner = self.inner.lock().unwrap();
+        if !inner.started {
             return Err(CodexError::node_error("stop", "Node is not started"));
         }
 
-        with_libcodex_lock(|| {
-            // Create a callback future for the operation
-            let future = CallbackFuture::new();
+        // Create a callback future for the operation
+        let future = CallbackFuture::new();
 
-            // Call the C function with the context pointer directly
-            let result = unsafe {
-                codex_stop(
-                    self.ctx as *mut _,
-                    Some(c_callback),
-                    future.context_ptr() as *mut c_void,
-                )
-            };
+        // Call the C function with the context pointer directly
+        let result = unsafe {
+            codex_stop(
+                inner.ctx as *mut _,
+                Some(c_callback),
+                future.context_ptr() as *mut c_void,
+            )
+        };
 
-            if result != 0 {
-                return Err(CodexError::node_error("stop", "Failed to stop node"));
-            }
+        if result != 0 {
+            return Err(CodexError::node_error("stop", "Failed to stop node"));
+        }
 
-            self.started = false;
-            Ok(())
-        })
+        inner.started = false;
+        Ok(())
     }
 
     /// Stop the Codex node asynchronously
     ///
     /// This is the async version of `stop()`.
-    pub async fn stop_async(&mut self) -> Result<()> {
-        if !self.started {
+    pub async fn stop_async(&self) -> Result<()> {
+        let mut inner = self.inner.lock().unwrap();
+        if !inner.started {
             return Err(CodexError::node_error("stop_async", "Node is not started"));
         }
 
@@ -228,7 +242,7 @@ impl CodexNode {
         // Call the C function with the context pointer directly
         let result = unsafe {
             codex_stop(
-                self.ctx as *mut _,
+                inner.ctx as *mut _,
                 Some(c_callback),
                 future.context_ptr() as *mut c_void,
             )
@@ -241,7 +255,7 @@ impl CodexNode {
         // Wait for the operation to complete
         let _result = future.await?;
 
-        self.started = false;
+        inner.started = false;
         Ok(())
     }
 
@@ -265,202 +279,217 @@ impl CodexNode {
     /// node.destroy()?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn destroy(mut self) -> Result<()> {
-        if self.started {
+    pub fn destroy(self) -> Result<()> {
+        // Check if we're the sole owner
+        if Arc::strong_count(&self.inner) != 1 {
+            return Err(CodexError::node_error(
+                "destroy",
+                "Cannot destroy: multiple references exist",
+            ));
+        }
+
+        let mut inner = self.inner.lock().unwrap();
+        if inner.started {
             return Err(CodexError::node_error("destroy", "Node is still started"));
         }
 
-        with_libcodex_lock(|| {
-            // First close the node - this needs to complete before destroy
-            let future = CallbackFuture::new();
+        // First close the node - this needs to complete before destroy
+        let future = CallbackFuture::new();
 
-            // Call the C function to close the node
-            let result = unsafe {
-                codex_close(
-                    self.ctx as *mut _,
-                    Some(c_callback),
-                    future.context_ptr() as *mut c_void,
-                )
-            };
+        // Call the C function to close the node
+        let result = unsafe {
+            codex_close(
+                inner.ctx as *mut _,
+                Some(c_callback),
+                future.context_ptr() as *mut c_void,
+            )
+        };
 
-            if result != 0 {
-                return Err(CodexError::node_error("destroy", "Failed to close node"));
-            }
+        if result != 0 {
+            return Err(CodexError::node_error("destroy", "Failed to close node"));
+        }
 
-            // Wait for the close operation to complete
-            future.wait()?;
+        // Wait for the close operation to complete
+        future.wait()?;
 
-            // Now destroy the node - this is synchronous and doesn't use the callback
-            // According to the Go bindings, we don't check the return value of destroy
-            unsafe {
-                codex_destroy(
-                    self.ctx as *mut _,
-                    None, // No callback needed for destroy
-                    ptr::null_mut(),
-                )
-            };
+        // Now destroy the node - this is synchronous and doesn't use the callback
+        // According to the Go bindings, we don't check the return value of destroy
+        unsafe {
+            codex_destroy(
+                inner.ctx as *mut _,
+                None, // No callback needed for destroy
+                ptr::null_mut(),
+            )
+        };
 
-            self.ctx = ptr::null_mut();
-            Ok(())
-        })
+        inner.ctx = ptr::null_mut();
+        Ok(())
     }
 
     /// Get the version of the Codex node
     pub fn version(&self) -> Result<String> {
-        with_libcodex_lock(|| {
-            // Create a callback future for the operation
-            let future = CallbackFuture::new();
+        let inner = self.inner.lock().unwrap();
 
-            // Call the C function with the context pointer directly
-            let result = unsafe {
-                codex_version(
-                    self.ctx as *mut _,
-                    Some(c_callback),
-                    future.context_ptr() as *mut c_void,
-                )
-            };
+        // Create a callback future for the operation
+        let future = CallbackFuture::new();
 
-            if result != 0 {
-                return Err(CodexError::node_error("version", "Failed to get version"));
-            }
+        // Call the C function with the context pointer directly
+        let result = unsafe {
+            codex_version(
+                inner.ctx as *mut _,
+                Some(c_callback),
+                future.context_ptr() as *mut c_void,
+            )
+        };
 
-            // Wait for the operation to complete
-            let version = future.wait()?;
+        if result != 0 {
+            return Err(CodexError::node_error("version", "Failed to get version"));
+        }
 
-            Ok(version)
-        })
+        // Wait for the operation to complete
+        let version = future.wait()?;
+
+        Ok(version)
     }
 
     /// Get the revision of the Codex node
     pub fn revision(&self) -> Result<String> {
-        with_libcodex_lock(|| {
-            // Create a callback future for the operation
-            let future = CallbackFuture::new();
+        let inner = self.inner.lock().unwrap();
 
-            // Call the C function with the context pointer directly
-            let result = unsafe {
-                codex_revision(
-                    self.ctx as *mut _,
-                    Some(c_callback),
-                    future.context_ptr() as *mut c_void,
-                )
-            };
+        // Create a callback future for the operation
+        let future = CallbackFuture::new();
 
-            if result != 0 {
-                return Err(CodexError::node_error("revision", "Failed to get revision"));
-            }
+        // Call the C function with the context pointer directly
+        let result = unsafe {
+            codex_revision(
+                inner.ctx as *mut _,
+                Some(c_callback),
+                future.context_ptr() as *mut c_void,
+            )
+        };
 
-            // Wait for the operation to complete
-            let revision = future.wait()?;
+        if result != 0 {
+            return Err(CodexError::node_error("revision", "Failed to get revision"));
+        }
 
-            Ok(revision)
-        })
+        // Wait for the operation to complete
+        let revision = future.wait()?;
+
+        Ok(revision)
     }
 
     /// Get the path of the data directory
     pub fn repo(&self) -> Result<String> {
-        with_libcodex_lock(|| {
-            // Create a callback future for the operation
-            let future = CallbackFuture::new();
+        let inner = self.inner.lock().unwrap();
 
-            // Call the C function with the context pointer directly
-            let result = unsafe {
-                codex_repo(
-                    self.ctx as *mut _,
-                    Some(c_callback),
-                    future.context_ptr() as *mut c_void,
-                )
-            };
+        // Create a callback future for the operation
+        let future = CallbackFuture::new();
 
-            if result != 0 {
-                return Err(CodexError::node_error("repo", "Failed to get repo path"));
-            }
+        // Call the C function with the context pointer directly
+        let result = unsafe {
+            codex_repo(
+                inner.ctx as *mut _,
+                Some(c_callback),
+                future.context_ptr() as *mut c_void,
+            )
+        };
 
-            // Wait for the operation to complete
-            let repo = future.wait()?;
+        if result != 0 {
+            return Err(CodexError::node_error("repo", "Failed to get repo path"));
+        }
 
-            Ok(repo)
-        })
+        // Wait for the operation to complete
+        let repo = future.wait()?;
+
+        Ok(repo)
     }
 
     /// Get the SPR (Storage Provider Reputation) of the node
     pub fn spr(&self) -> Result<String> {
-        with_libcodex_lock(|| {
-            // Create a callback future for the operation
-            let future = CallbackFuture::new();
+        let inner = self.inner.lock().unwrap();
 
-            // Call the C function with the context pointer directly
-            let result = unsafe {
-                codex_spr(
-                    self.ctx as *mut _,
-                    Some(c_callback),
-                    future.context_ptr() as *mut c_void,
-                )
-            };
+        // Create a callback future for the operation
+        let future = CallbackFuture::new();
 
-            if result != 0 {
-                return Err(CodexError::node_error("spr", "Failed to get SPR"));
-            }
+        // Call the C function with the context pointer directly
+        let result = unsafe {
+            codex_spr(
+                inner.ctx as *mut _,
+                Some(c_callback),
+                future.context_ptr() as *mut c_void,
+            )
+        };
 
-            // Wait for the operation to complete
-            let spr = future.wait()?;
+        if result != 0 {
+            return Err(CodexError::node_error("spr", "Failed to get SPR"));
+        }
 
-            Ok(spr)
-        })
+        // Wait for the operation to complete
+        let spr = future.wait()?;
+
+        Ok(spr)
     }
 
     /// Get the peer ID of the node
     pub fn peer_id(&self) -> Result<String> {
-        with_libcodex_lock(|| {
-            // Create a callback future for the operation
-            let future = CallbackFuture::new();
+        let inner = self.inner.lock().unwrap();
 
-            // Call the C function with the context pointer directly
-            let result = unsafe {
-                codex_peer_id(
-                    self.ctx as *mut _,
-                    Some(c_callback),
-                    future.context_ptr() as *mut c_void,
-                )
-            };
+        // Create a callback future for the operation
+        let future = CallbackFuture::new();
 
-            if result != 0 {
-                return Err(CodexError::node_error("peer_id", "Failed to get peer ID"));
-            }
+        // Call the C function with the context pointer directly
+        let result = unsafe {
+            codex_peer_id(
+                inner.ctx as *mut _,
+                Some(c_callback),
+                future.context_ptr() as *mut c_void,
+            )
+        };
 
-            // Wait for the operation to complete
-            let peer_id = future.wait()?;
+        if result != 0 {
+            return Err(CodexError::node_error("peer_id", "Failed to get peer ID"));
+        }
 
-            Ok(peer_id)
-        })
+        // Wait for the operation to complete
+        let peer_id = future.wait()?;
+
+        Ok(peer_id)
     }
 
     /// Check if the node is started
     pub fn is_started(&self) -> bool {
-        self.started
+        let inner = self.inner.lock().unwrap();
+        inner.started
     }
 
     /// Get the raw context pointer (for internal use)
     #[allow(dead_code)]
     pub(crate) fn ctx(&self) -> *mut c_void {
-        self.ctx
+        let inner = self.inner.lock().unwrap();
+        inner.ctx
     }
 }
 
 impl Drop for CodexNode {
     fn drop(&mut self) {
-        let _ = with_libcodex_lock(|| {
-            if !self.ctx.is_null() && self.started {
+        // Only cleanup if we're the last reference
+        if Arc::strong_count(&self.inner) == 1 {
+            let mut inner = self.inner.lock().unwrap();
+            if !inner.ctx.is_null() && inner.started {
                 // Try to stop the node if it's still started
-                let _ = self.stop();
+                let _ = unsafe {
+                    codex_stop(inner.ctx as *mut _, None, ptr::null_mut());
+                };
+                inner.started = false;
             }
 
-            if !self.ctx.is_null() {
+            if !inner.ctx.is_null() {
                 // Try to destroy the node if it's not already destroyed
                 let _ = unsafe {
-                    codex_destroy(self.ctx as *mut _, None, ptr::null_mut());
+                    codex_destroy(inner.ctx as *mut _, None, ptr::null_mut());
                 };
+                inner.ctx = ptr::null_mut();
             }
-        });
+        }
     }
 }

@@ -122,7 +122,7 @@ pub async fn download_stream(
     // Call the C function to stream the download
     let result = unsafe {
         codex_download_stream(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_cid,
             chunk_size,
             options.local,

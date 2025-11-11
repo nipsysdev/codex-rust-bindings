@@ -42,7 +42,7 @@ pub async fn download_init(node: &CodexNode, cid: &str, options: &DownloadOption
     // Call the C function with the context pointer directly
     let result = unsafe {
         codex_download_init(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_cid,
             options.chunk_size.unwrap_or(1024 * 1024),
             false, // local flag
@@ -104,7 +104,7 @@ pub async fn download_chunk(node: &CodexNode, cid: &str) -> Result<Vec<u8>> {
     // Call the C function with the context pointer directly
     let result = unsafe {
         codex_download_chunk(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_cid,
             Some(c_callback),
             future.context_ptr() as *mut c_void,
@@ -151,7 +151,7 @@ pub async fn download_cancel(node: &CodexNode, cid: &str) -> Result<()> {
     // Call the C function with the context pointer directly
     let result = unsafe {
         codex_download_cancel(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_cid,
             Some(c_callback),
             future.context_ptr() as *mut c_void,

@@ -127,7 +127,7 @@ pub async fn upload_file(node: &CodexNode, options: UploadOptions) -> Result<Upl
     // Call the C function with the context pointer directly
     let result = unsafe {
         codex_upload_file(
-            node.ctx as *mut _,
+            node.ctx() as *mut _,
             c_session_id,
             Some(c_callback),
             future.context_ptr() as *mut c_void,
