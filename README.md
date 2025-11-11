@@ -26,7 +26,7 @@ This crate automatically builds the required libcodex library during compilation
 
 Building will automatically:
 
-1. Clone the nim-codex repository and it's submodules (currently using [my fork](https://github.com/nipsysdev/nim-codex/tree/feat/c-binding))
+1. Clone the nim-codex repository and it's submodules from the `feat/c-binding` branch
 2. Build the Nim compiler from source
 3. Build libcodex with the Nim compiler
 4. Generate Rust bindings and compile the crate

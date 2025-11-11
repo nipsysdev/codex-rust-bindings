@@ -1,70 +1,8 @@
 //! Node configuration structures for Codex
 
 use crate::error::{CodexError, Result};
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-
-/// Serialize u64 as string for compatibility with C library
-/// Note: storage-quota must be a string due to C library requirements
-fn serialize_u64_as_string<S>(
-    value: &Option<u64>,
-    serializer: S,
-) -> std::result::Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    match value {
-        Some(v) => serializer.serialize_str(&v.to_string()),
-        None => serializer.serialize_none(),
-    }
-}
-
-/// Deserialize u64 from string for compatibility with C library
-fn deserialize_u64_from_string<'de, D>(
-    deserializer: D,
-) -> std::result::Result<Option<u64>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::de::{self, Visitor};
-    use std::fmt;
-    use std::str::FromStr;
-
-    struct U64StringVisitor;
-
-    impl<'de> Visitor<'de> for U64StringVisitor {
-        type Value = Option<u64>;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a string containing a u64 or null")
-        }
-
-        fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            u64::from_str(value)
-                .map(Some)
-                .map_err(|_| E::custom(format!("invalid u64 string: {}", value)))
-        }
-
-        fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            Ok(None)
-        }
-
-        fn visit_some<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
-        where
-            D: serde::Deserializer<'de>,
-        {
-            deserializer.deserialize_str(self)
-        }
-    }
-
-    deserializer.deserialize_option(U64StringVisitor)
-}
 
 /// Log level for the Codex node
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -250,9 +188,7 @@ pub struct CodexConfig {
     #[serde(
         rename = "storage-quota",
         default,
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "serialize_u64_as_string",
-        deserialize_with = "deserialize_u64_from_string"
+        skip_serializing_if = "Option::is_none"
     )]
     pub storage_quota: Option<u64>,
 
@@ -280,9 +216,7 @@ pub struct CodexConfig {
     #[serde(
         rename = "cache-size",
         default,
-        skip_serializing_if = "Option::is_none",
-        serialize_with = "serialize_u64_as_string",
-        deserialize_with = "deserialize_u64_from_string"
+        skip_serializing_if = "Option::is_none"
     )]
     pub cache_size: Option<u64>,
 
@@ -579,7 +513,7 @@ mod tests {
         // Full config
         assert_eq!(parsed["log-level"], "error");
         assert_eq!(parsed["data-dir"], "/tmp/codex");
-        assert_eq!(parsed["storage-quota"], "1048576"); // Should be string
+        assert_eq!(parsed["storage-quota"], 1048576);
         assert_eq!(parsed["max-peers"], 50);
         assert!(parsed["listen-addrs"].is_array());
         assert!(parsed["bootstrap-node"].is_array());
@@ -624,12 +558,12 @@ mod tests {
             "num-threads":4,
             "agent-string":"TestAgent/1.0",
             "repo-kind":"sqlite",
-            "storage-quota":"2147483648",
+            "storage-quota":2147483648,
             "block-ttl":86400,
             "block-mi":600,
             "block-mn":500,
             "block-retries":1000,
-            "cache-size":"1048576",
+            "cache-size":1048576,
             "log-file":"/var/log/codex.log"
         }"#;
 

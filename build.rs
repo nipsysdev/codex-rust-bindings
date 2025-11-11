@@ -46,7 +46,7 @@ fn clone_nim_codex(target_dir: &PathBuf) {
             "--branch",
             "feat/c-binding",
             "--recurse-submodules",
-            "https://github.com/nipsysdev/nim-codex",
+            "https://github.com/codex-storage/nim-codex",
             &target_dir.to_string_lossy(),
         ])
         .status()
@@ -54,7 +54,7 @@ fn clone_nim_codex(target_dir: &PathBuf) {
 
     if !status.success() {
         panic!(
-            "Failed to clone nim-codex repository from https://github.com/nipsysdev/nim-codex (branch: feat/c-binding). \
+            "Failed to clone nim-codex repository from https://github.com/codex-storage/nim-codex (branch: feat/c-binding). \
              Please check your internet connection and repository access."
         );
     }
