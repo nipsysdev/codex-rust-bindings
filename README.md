@@ -8,7 +8,7 @@ Include in your Cargo project:
 
 ```toml
 [dependencies]
-codex-bindings = "0.1.2"
+codex-bindings = "0.1.3"
 ```
 
 To learn how to use those bindings, take a look at the [example project](https://github.com/nipsysdev/example-codex-rust-bindings) or the [integration tests](./tests/).
@@ -19,10 +19,10 @@ To learn how to use those bindings, take a look at the [example project](https:/
 
 This crate automatically builds the required libcodex library during compilation, so you don't need to install nim-codex separately. However, you will need:
 
-- **Rust and Cargo** (for building this crate)
-- **Git** (for cloning the nim-codex repository)
-- **Make** (for building libcodex)
-- **C compiler** (gcc/clang) and **C++ standard library** (libstdc++)
+- **Rust and Cargo**
+- **Git**
+- **Make**
+- **C compiler**
 
 Building will automatically:
 
@@ -79,7 +79,7 @@ cargo build --features static-linking
 
 ```toml
 [dependencies]
-codex-bindings = { version = "0.1.2", features = ["static-linking"] }
+codex-bindings = { version = "0.1.3", features = ["static-linking"] }
 ```
 
 ## License
