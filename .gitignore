@@ -48,3 +48,5 @@ src/ffi/bindings.rs
 
 # LLM
 .kilocode
+
+.vendor/nim-codex/*
