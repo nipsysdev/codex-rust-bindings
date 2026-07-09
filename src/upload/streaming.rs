@@ -213,7 +213,7 @@ where
 {
     // Adjust chunk size based on total size if provided
     let adjusted_options = if let Some(size) = total_size {
-        let optimal_chunk_size = (size / 100).clamp(64 * 1024, 4 * 1024 * 1024);
+        let optimal_chunk_size = (size / 100).clamp(64 * 1024, 512 * 1024);
 
         let mut opts = options;
         opts.chunk_size = Some(optimal_chunk_size);

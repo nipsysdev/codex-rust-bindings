@@ -6,5 +6,5 @@
 pub mod config;
 pub mod lifecycle;
 
-pub use config::{LogFormat, LogLevel, RepoKind, StorageConfig};
+pub use config::{LogFormat, LogLevel, NetworkPreset, RepoKind, StorageConfig};
 pub use lifecycle::StorageNode;

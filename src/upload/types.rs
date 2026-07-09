@@ -84,7 +84,7 @@ impl Default for UploadOptions {
     fn default() -> Self {
         Self {
             filepath: None,
-            chunk_size: Some(1024 * 1024),
+            chunk_size: Some(64 * 1024),
             strategy: UploadStrategy::Auto,
             on_progress: None,
             verify: true,

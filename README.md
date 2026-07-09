@@ -8,7 +8,7 @@ Include in your Cargo project:
 
 ```toml
 [dependencies]
-storage-bindings = "0.2"
+storage-bindings = "0.4.1"
 ```
 
 To learn how to use those bindings, take a look at the [example project](https://github.com/nipsysdev/example-storage-rust-bindings) or the [integration tests](./tests/) directory.
@@ -38,7 +38,7 @@ The cache is organized by version and platform:
 
 ```
 ~/.cache/storage-bindings/
-├── v0.3.0/              # Stable release
+├── v0.4.1/              # Stable release
 │   ├── linux-amd64/
 │   │   ├── libstorage.a
 │   │   ├── libstorage.h
@@ -94,13 +94,13 @@ Add to your `Cargo.toml`:
 
 ```toml
 [package.metadata.prebuilt]
-libstorage = "v0.3.0"
+libstorage = "v0.4.1"
 ```
 
 **Option 2: Environment variable (for local overrides)**
 
 ```bash
-export LOGOS_STORAGE_VERSION=v0.3.0
+export LOGOS_STORAGE_VERSION=v0.4.1
 cargo build
 ```
 
@@ -133,7 +133,7 @@ cargo build
 To use locally built libraries instead of downloading from GitHub, set the `STORAGE_BINDINGS_LOCAL_LIBS` environment variable to the path of the dist folder:
 
 ```bash
-export STORAGE_BINDINGS_LOCAL_LIBS=/path/to/logos-storage-nim-bin/dist/v0.3.0-linux-amd64
+export STORAGE_BINDINGS_LOCAL_LIBS=/path/to/logos-storage-nim-bin/dist/v0.4.1-linux-amd64
 cargo build
 ```
 

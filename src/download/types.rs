@@ -123,7 +123,7 @@ impl DownloadOptions {
     pub fn new(cid: impl Into<String>) -> Self {
         Self {
             cid: cid.into(),
-            chunk_size: Some(1024 * 1024), // 1 MB default
+            chunk_size: Some(64 * 1024), // 64 KiB default (nim MaxBlockSize is 512 KiB)
             on_progress: None,
             timeout: Some(300), // 5 minutes default
             verify: true,
@@ -253,7 +253,7 @@ impl DownloadStreamOptions {
             cid: cid.into(),
             filepath: None,
             writer: None,
-            chunk_size: Some(1024 * 1024), // 1 MB default
+            chunk_size: Some(64 * 1024), // 64 KiB default (nim MaxBlockSize is 512 KiB)
             on_progress: None,
             local: false,
             dataset_size: None,

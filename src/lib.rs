@@ -170,7 +170,7 @@ pub use download::{
 
 pub use error::{Result, StorageError};
 
-pub use node::{LogFormat, LogLevel, StorageConfig, StorageNode};
+pub use node::{LogFormat, LogLevel, NetworkPreset, StorageConfig, StorageNode};
 
 pub use p2p::{
     connect, connect_to_multiple, get_peer_id, get_peer_info, validate_addresses, validate_peer_id,

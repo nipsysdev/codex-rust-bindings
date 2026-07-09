@@ -1,8 +1,9 @@
 use crate::callback::{c_callback, with_libstorage_lock, CallbackFuture};
 use crate::error::{Result, StorageError};
 use crate::ffi::{
-    storage_close, storage_destroy, storage_new, storage_peer_id, storage_repo, storage_revision,
-    storage_spr, storage_start, storage_stop, storage_version, string_to_c_string, SendSafePtr,
+    c_str_to_string, storage_close, storage_destroy, storage_get_metrics, storage_new,
+    storage_peer_id, storage_repo, storage_revision, storage_spr, storage_start, storage_stop,
+    storage_toggle_private_queries, storage_version, string_to_c_string, SendSafePtr,
 };
 use crate::node::config::StorageConfig;
 use libc::c_void;
@@ -294,7 +295,8 @@ impl StorageNode {
 
         future.await?;
 
-        unsafe { storage_destroy(ctx, None, ptr::null_mut()) };
+        // storage_destroy is synchronous and takes only the context.
+        unsafe { storage_destroy(ctx) };
 
         {
             let mut inner = self.inner.lock().unwrap();
@@ -332,45 +334,45 @@ impl StorageNode {
     /// }
     /// ```
     pub async fn version(&self) -> Result<String> {
-        let node = self.clone();
-        let future = CallbackFuture::new();
-        let context_ptr = future.context_ptr();
-
         let ctx = {
-            let inner = node.inner.lock().unwrap();
+            let inner = self.inner.lock().unwrap();
             inner.ctx as *mut _
         };
 
-        let result = unsafe { storage_version(ctx, Some(c_callback), context_ptr.as_ptr()) };
-
-        if result != 0 {
+        // storage_version is synchronous and returns a heap string the caller must free.
+        let c_ptr = with_libstorage_lock(|| unsafe { storage_version(ctx) });
+        if c_ptr.is_null() {
             return Err(StorageError::node_error("version", "Failed to get version"));
         }
 
-        future.await
+        let version = unsafe { c_str_to_string(c_ptr) }
+            .map_err(|e| StorageError::node_error("version", format!("Invalid UTF-8: {}", e)))?;
+        unsafe { libc::free(c_ptr as *mut c_void) };
+
+        Ok(version)
     }
 
     /// Get the revision of the Storage node
     pub async fn revision(&self) -> Result<String> {
-        let node = self.clone();
-        let future = CallbackFuture::new();
-        let context_ptr = future.context_ptr();
-
         let ctx = {
-            let inner = node.inner.lock().unwrap();
+            let inner = self.inner.lock().unwrap();
             inner.ctx as *mut _
         };
 
-        let result = unsafe { storage_revision(ctx, Some(c_callback), context_ptr.as_ptr()) };
-
-        if result != 0 {
+        // storage_revision is synchronous and returns a heap string the caller must free.
+        let c_ptr = with_libstorage_lock(|| unsafe { storage_revision(ctx) });
+        if c_ptr.is_null() {
             return Err(StorageError::node_error(
                 "revision",
                 "Failed to get revision",
             ));
         }
 
-        future.await
+        let revision = unsafe { c_str_to_string(c_ptr) }
+            .map_err(|e| StorageError::node_error("revision", format!("Invalid UTF-8: {}", e)))?;
+        unsafe { libc::free(c_ptr as *mut c_void) };
+
+        Ok(revision)
     }
 
     /// Get the repository path of the Storage node
@@ -455,6 +457,66 @@ impl StorageNode {
         future.await
     }
 
+    /// Get the node metrics in the Logos openmetrics-compatible format
+    /// (https://github.com/logos-co/openmetrics-module).
+    pub async fn get_metrics(&self) -> Result<String> {
+        let future = CallbackFuture::new();
+        let context_ptr = future.context_ptr();
+
+        let ctx = {
+            let inner = self.inner.lock().unwrap();
+            inner.ctx as *mut _
+        };
+
+        let result = unsafe { storage_get_metrics(ctx, Some(c_callback), context_ptr.as_ptr()) };
+
+        if result != 0 {
+            return Err(StorageError::node_error(
+                "get_metrics",
+                "Failed to get metrics",
+            ));
+        }
+
+        future.await
+    }
+
+    /// Toggle routing of DHT queries over the Logos mix network.
+    ///
+    /// When enabled, all subsequent DHT queries are tunnelled over Mix; this
+    /// affects queries only, not advertisements.
+    ///
+    /// Enabling requires Mix to be configured: `mix_enabled` true and at least
+    /// one `dht_mix_proxies` set (see [`StorageConfig`]). Otherwise enabling
+    /// fails with an error. Disabling is always allowed.
+    ///
+    /// This is a temporary API and will likely be removed before mainnet.
+    ///
+    /// On success, returns the previous toggle state (true = private queries
+    /// were already enabled).
+    pub async fn toggle_private_queries(&self, enabled: bool) -> Result<bool> {
+        let future = CallbackFuture::new();
+        let context_ptr = future.context_ptr();
+
+        let ctx = {
+            let inner = self.inner.lock().unwrap();
+            inner.ctx as *mut _
+        };
+
+        let result = unsafe {
+            storage_toggle_private_queries(ctx, enabled, Some(c_callback), context_ptr.as_ptr())
+        };
+
+        if result != 0 {
+            return Err(StorageError::node_error(
+                "toggle_private_queries",
+                "Failed to toggle private queries",
+            ));
+        }
+
+        let previous = future.await?;
+        Ok(previous == "true")
+    }
+
     pub fn is_started(&self) -> bool {
         let inner = self.inner.lock().unwrap();
         inner.started
@@ -508,7 +570,7 @@ impl Drop for StorageNode {
             // Destroy the node
             if !inner.ctx.is_null() {
                 unsafe {
-                    storage_destroy(inner.ctx as *mut _, None, ptr::null_mut());
+                    storage_destroy(inner.ctx as *mut _);
                 }
                 inner.ctx = ptr::null_mut();
             }

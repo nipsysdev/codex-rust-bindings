@@ -41,10 +41,8 @@ async fn test_two_node_network() -> Result<(), Box<dyn std::error::Error>> {
         .storage_quota(100 * 1024 * 1024)
         .max_peers(50)
         .discovery_port(8092)
-        .listen_addrs(vec![
-            "/ip4/127.0.0.1/tcp/0".to_string(),
-            "/ip4/0.0.0.0/tcp/0".to_string(),
-        ]);
+        .listen_ip("0.0.0.0")
+        .listen_port(0);
 
     let node1 = StorageNode::new(node1_config).await?;
     node1.start().await?;
@@ -67,10 +65,8 @@ async fn test_two_node_network() -> Result<(), Box<dyn std::error::Error>> {
         .discovery_port(8093)
         .add_bootstrap_node(&debug1.spr);
 
-    node2_config.listen_addrs = vec![
-        "/ip4/127.0.0.1/tcp/0".to_string(),
-        "/ip4/0.0.0.0/tcp/0".to_string(),
-    ];
+    node2_config.listen_ip = Some("0.0.0.0".to_string());
+    node2_config.listen_port = Some(0);
 
     let node2 = StorageNode::new(node2_config).await?;
     node2.start().await?;
