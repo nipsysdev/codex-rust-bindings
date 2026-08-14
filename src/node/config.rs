@@ -145,7 +145,7 @@ pub struct StorageConfig {
     )]
     pub listen_port: Option<u16>,
 
-    /// Specify method to use for determining public address
+    /// Specify method to use for determining public address: "auto" or "extip:<IP>"
     #[serde(rename = "nat", default, skip_serializing_if = "Option::is_none")]
     pub nat: Option<String>,
 
@@ -288,7 +288,7 @@ impl Default for StorageConfig {
             data_dir: None,
             listen_ip: None,
             listen_port: None,
-            nat: Some("any".to_string()),
+            nat: Some("auto".to_string()),
             discovery_port: Some(8090),
             net_priv_key_file: None,
             network: None,
@@ -945,7 +945,7 @@ mod tests {
             "data-dir":"/tmp/storage",
             "listen-ip":"127.0.0.1",
             "listen-port":8080,
-            "nat":"any",
+            "nat":"auto",
             "disc-port":8090,
             "network":"logos.test",
             "bootstrap-node":["/ip4/127.0.0.1/tcp/8081"],
@@ -977,7 +977,7 @@ mod tests {
         assert_eq!(config.data_dir, Some(PathBuf::from("/tmp/storage")));
         assert_eq!(config.listen_ip, Some("127.0.0.1".to_string()));
         assert_eq!(config.listen_port, Some(8080));
-        assert_eq!(config.nat, Some("any".to_string()));
+        assert_eq!(config.nat, Some("auto".to_string()));
         assert_eq!(config.discovery_port, Some(8090));
         assert_eq!(config.network, Some(NetworkPreset::LogosTest));
         assert_eq!(config.bootstrap_nodes, vec!["/ip4/127.0.0.1/tcp/8081"]);
@@ -1051,8 +1051,8 @@ mod tests {
 
     #[test]
     fn test_nat_builder() {
-        let config = StorageConfig::new().nat("any");
-        assert_eq!(config.nat, Some("any".to_string()));
+        let config = StorageConfig::new().nat("auto");
+        assert_eq!(config.nat, Some("auto".to_string()));
     }
 
     #[test]
@@ -1131,7 +1131,7 @@ mod tests {
             .max_peers(50)
             .storage_quota(1024 * 1024 * 1024) // 1 GB
             .repo_kind(RepoKind::Sqlite)
-            .nat("any")
+            .nat("auto")
             .agent_string("TestAgent/1.0")
             .block_ttl(86400)
             .mix_enabled(true);
@@ -1148,7 +1148,7 @@ mod tests {
         assert_eq!(config.max_peers, Some(50));
         assert_eq!(config.storage_quota, Some(1024 * 1024 * 1024));
         assert_eq!(config.repo_kind, Some(RepoKind::Sqlite));
-        assert_eq!(config.nat, Some("any".to_string()));
+        assert_eq!(config.nat, Some("auto".to_string()));
         assert_eq!(config.agent_string, Some("TestAgent/1.0".to_string()));
         assert_eq!(config.block_ttl, Some(86400));
         assert_eq!(config.mix_enabled, Some(true));

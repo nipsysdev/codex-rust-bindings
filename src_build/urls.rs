@@ -1,6 +1,6 @@
-pub const GITHUB_REPO_OWNER: &str = "nipsysdev";
+pub const GITHUB_REPO_OWNER: &str = "logos-storage";
 
-pub const GITHUB_REPO_NAME: &str = "logos-storage-nim-bin";
+pub const GITHUB_REPO_NAME: &str = "logos-storage-nim";
 
 pub const GITHUB_API_BASE: &str = "https://api.github.com/repos";
 

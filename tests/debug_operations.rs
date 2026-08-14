@@ -29,7 +29,7 @@ async fn test_debug_operations() -> Result<(), Box<dyn std::error::Error>> {
     println!("Address count: {}", debug_info.address_count());
     println!(
         "Announce address count: {}",
-        debug_info.announce_address_count()
+        debug_info.provider_address_count()
     );
     println!(
         "Discovery node count: {}",
@@ -172,7 +172,7 @@ async fn test_debug_operations() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Address count: {}", final_debug_info.address_count());
     println!(
         "  Announce address count: {}",
-        final_debug_info.announce_address_count()
+        final_debug_info.provider_address_count()
     );
     println!(
         "  Discovery node count: {}",

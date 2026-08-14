@@ -35,8 +35,8 @@ pub struct DebugInfo {
     pub id: String,
     pub addrs: Vec<String>,
     pub spr: String,
-    #[serde(rename = "announceAddresses")]
-    pub announce_addresses: Vec<String>,
+    #[serde(rename = "providerAddresses")]
+    pub provider_addresses: Vec<String>,
     pub table: DiscoveryTable,
 }
 
@@ -71,8 +71,8 @@ impl DebugInfo {
         self.addrs.len()
     }
 
-    pub fn announce_address_count(&self) -> usize {
-        self.announce_addresses.len()
+    pub fn provider_address_count(&self) -> usize {
+        self.provider_addresses.len()
     }
 
     pub fn discovery_node_count(&self) -> usize {
@@ -101,7 +101,7 @@ impl Default for DebugInfo {
             id: String::new(),
             addrs: Vec::new(),
             spr: String::new(),
-            announce_addresses: Vec::new(),
+            provider_addresses: Vec::new(),
             table: DiscoveryTable {
                 local_node: LocalNodeInfo {
                     node_id: String::new(),

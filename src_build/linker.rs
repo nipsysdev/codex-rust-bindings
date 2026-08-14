@@ -53,6 +53,8 @@ pub fn link_prebuilt_library(lib_dir: &PathBuf) {
     println!("cargo:rustc-link-lib=static=miniupnpc");
     println!("  [LINKER]   - backtrace");
     println!("cargo:rustc-link-lib=static=backtrace");
+    println!("  [LINKER]   - plum");
+    println!("cargo:rustc-link-lib=static=plum");
     println!("  [LINKER] ✓ Static libraries linked");
 
     // System libraries required by the prebuilt library

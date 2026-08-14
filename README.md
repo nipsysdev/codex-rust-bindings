@@ -8,7 +8,7 @@ Include in your Cargo project:
 
 ```toml
 [dependencies]
-storage-bindings = "0.4.1"
+storage-bindings = "0.4.4"
 ```
 
 To learn how to use those bindings, take a look at the [example project](https://github.com/nipsysdev/example-storage-rust-bindings) or the [integration tests](./tests/) directory.
@@ -17,10 +17,10 @@ To learn how to use those bindings, take a look at the [example project](https:/
 
 Building will automatically:
 
-1. Fetch the pinned static binary release of libstorage for your platform from the [logos-storage-nim-bin](https://github.com/nipsysdev/logos-storage-nim-bin/releases) repository releases
+1. Fetch the pinned static library release of libstorage for your platform from the [logos-storage-nim](https://github.com/logos-storage/logos-storage-nim/releases) repository releases
 2. Generate Rust bindings and compile the crate
 
-**Note**: The first build will download the prebuilt binary (~50MB). Subsequent builds will use the cached version.
+**Note**: The first build will download the prebuilt libraries (~135MB). Subsequent builds will use the cached version.
 
 ## Caching
 
@@ -38,11 +38,10 @@ The cache is organized by version and platform:
 
 ```
 ~/.cache/storage-bindings/
-├── v0.4.1/              # Stable release
+├── v0.4.4/              # Stable release
 │   ├── linux-amd64/
 │   │   ├── libstorage.a
-│   │   ├── libstorage.h
-│   │   └── SHA256SUMS.txt
+│   │   └── libstorage.h
 │   └── darwin-arm64/
 │       └── ...
 ├── master-60861d6a/     # Nightly release
@@ -82,11 +81,10 @@ STORAGE_BINDINGS_CLEAN_CACHE=1 cargo build
 - Linux x86_64 (x86_64-unknown-linux-gnu)
 - Linux ARM64 (aarch64-unknown-linux-gnu)
 - macOS Apple Silicon (aarch64-apple-darwin)
-- macOS Intel (x86_64-apple-darwin)
 
 ### Libstorage Version Pinning
 
-This crate is pinned to a stable release by default. You can override the version if needed. [See available versions here](https://github.com/nipsysdev/logos-storage-nim-bin/releases).
+This crate is pinned to a stable release by default. You can override the version if needed. [See available versions here](https://github.com/logos-storage/logos-storage-nim/releases).
 
 **Option 1: Cargo.toml metadata**
 
@@ -94,13 +92,13 @@ Add to your `Cargo.toml`:
 
 ```toml
 [package.metadata.prebuilt]
-libstorage = "v0.4.1"
+libstorage = "v0.4.4"
 ```
 
 **Option 2: Environment variable (for local overrides)**
 
 ```bash
-export LOGOS_STORAGE_VERSION=v0.4.1
+export LOGOS_STORAGE_VERSION=v0.4.4
 cargo build
 ```
 
@@ -133,7 +131,7 @@ cargo build
 To use locally built libraries instead of downloading from GitHub, set the `STORAGE_BINDINGS_LOCAL_LIBS` environment variable to the path of the dist folder:
 
 ```bash
-export STORAGE_BINDINGS_LOCAL_LIBS=/path/to/logos-storage-nim-bin/dist/v0.4.1-linux-amd64
+export STORAGE_BINDINGS_LOCAL_LIBS=/path/to/libstorage-linux-amd64-v0.4.4-static
 cargo build
 ```
 

@@ -9,7 +9,7 @@ const MIX_CONFIG: &str = include_str!("data/mix_config.json");
 fn base_config(dir: &std::path::Path, disc_port: u16) -> StorageConfig {
     StorageConfig::new()
         .data_dir(dir.join("storage_data"))
-        .nat("none")
+        .nat("extip:127.0.0.1")
         .discovery_port(disc_port)
 }
 
@@ -28,7 +28,8 @@ async fn test_get_metrics() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_toggle_private_queries_disable_without_mix() -> Result<(), Box<dyn std::error::Error>> {
+async fn test_toggle_private_queries_disable_without_mix() -> Result<(), Box<dyn std::error::Error>>
+{
     let _ = env_logger::try_init();
     let temp_dir = tempdir()?;
 
@@ -65,7 +66,7 @@ async fn test_toggle_private_queries_with_mix() -> Result<(), Box<dyn std::error
 
     let mut config = StorageConfig::from_json(MIX_CONFIG)?;
     config.data_dir = Some(temp_dir.path().join("storage_data"));
-    config.nat = Some("none".to_string());
+    config.nat = Some("extip:127.0.0.1".to_string());
     config.discovery_port = Some(8113);
 
     let node = StorageNode::new(config).await?;
@@ -80,7 +81,10 @@ async fn test_toggle_private_queries_with_mix() -> Result<(), Box<dyn std::error
 
     // Re-enabling is allowed because Mix is configured.
     let previous = node.toggle_private_queries(true).await?;
-    assert!(!previous, "previous state should be disabled after toggling off");
+    assert!(
+        !previous,
+        "previous state should be disabled after toggling off"
+    );
 
     Ok(())
 }
