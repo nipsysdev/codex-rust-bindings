@@ -76,6 +76,24 @@ impl std::fmt::Display for RepoKind {
     }
 }
 
+/// Network preset to connect to
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NetworkPreset {
+    #[serde(rename = "logos.test")]
+    LogosTest,
+    #[serde(rename = "logos.dev")]
+    LogosDev,
+}
+
+impl std::fmt::Display for NetworkPreset {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NetworkPreset::LogosTest => write!(f, "logos.test"),
+            NetworkPreset::LogosDev => write!(f, "logos.dev"),
+        }
+    }
+}
+
 /// Configuration for a Storage node
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageConfig {
@@ -115,15 +133,19 @@ pub struct StorageConfig {
     #[serde(rename = "data-dir", default, skip_serializing_if = "Option::is_none")]
     pub data_dir: Option<PathBuf>,
 
-    /// Multi Addresses to listen on (default: ["/ip4/0.0.0.0/tcp/0"])
-    #[serde(
-        rename = "listen-addrs",
-        default,
-        skip_serializing_if = "Vec::is_empty"
-    )]
-    pub listen_addrs: Vec<String>,
+    /// IP address to listen on for remote peer connections (default: 0.0.0.0)
+    #[serde(rename = "listen-ip", default, skip_serializing_if = "Option::is_none")]
+    pub listen_ip: Option<String>,
 
-    /// Specify method to use for determining public address
+    /// TCP port to listen on for remote peer connections (default: 0 = random)
+    #[serde(
+        rename = "listen-port",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub listen_port: Option<u16>,
+
+    /// Specify method to use for determining public address: "auto" or "extip:<IP>"
     #[serde(rename = "nat", default, skip_serializing_if = "Option::is_none")]
     pub nat: Option<String>,
 
@@ -139,13 +161,26 @@ pub struct StorageConfig {
     )]
     pub net_priv_key_file: Option<PathBuf>,
 
+    /// The network preset to connect to (overridden by bootstrap_nodes when set)
+    #[serde(rename = "network", default, skip_serializing_if = "Option::is_none")]
+    pub network: Option<NetworkPreset>,
+
     /// Specifies one or more bootstrap nodes to use when connecting to the network
+    /// (when set, overrides the network preset)
     #[serde(
         rename = "bootstrap-node",
         default,
         skip_serializing_if = "Vec::is_empty"
     )]
     pub bootstrap_nodes: Vec<String>,
+
+    /// Do not bootstrap the node at all (default: false)
+    #[serde(
+        rename = "no-bootstrap-node",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub no_bootstrap_node: Option<bool>,
 
     /// The maximum number of peers to connect to (default: 160)
     #[serde(rename = "max-peers", default, skip_serializing_if = "Option::is_none")]
@@ -199,17 +234,47 @@ pub struct StorageConfig {
     )]
     pub block_retries: Option<u32>,
 
-    /// The size of the block cache, 0 disables the cache (default: 0)
-    #[serde(
-        rename = "cache-size",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub cache_size: Option<u64>,
-
     /// Log file path (default: "" - no log file)
     #[serde(rename = "log-file", default, skip_serializing_if = "Option::is_none")]
     pub log_file: Option<PathBuf>,
+
+    /// Route DHT provider lookups through the Mix protocol via the dht_mix_proxies.
+    /// Hides the requester's identity from the proxy (default: false)
+    #[serde(
+        rename = "mix-enabled",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub mix_enabled: Option<bool>,
+
+    /// Path to the Mix relay pool JSON file
+    #[serde(rename = "mix-pool", default, skip_serializing_if = "Option::is_none")]
+    pub mix_pool: Option<PathBuf>,
+
+    /// Inline JSON content of the Mix relay pool (takes precedence over mix_pool)
+    #[serde(
+        rename = "mix-pool-json",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub mix_pool_json: Option<String>,
+
+    /// Peers used as dht-proxy destinations when Mix is enabled
+    #[serde(
+        rename = "dht-mix-proxy",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub dht_mix_proxies: Vec<String>,
+
+    /// Max concurrent DHT proxy lookups handled by this node
+    /// (omit to use the protocol default)
+    #[serde(
+        rename = "dht-proxy-max-inflight",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub dht_proxy_max_in_flight: Option<u32>,
 }
 
 impl Default for StorageConfig {
@@ -221,11 +286,14 @@ impl Default for StorageConfig {
             metrics_address: Some("127.0.0.1".to_string()),
             metrics_port: Some(8008),
             data_dir: None,
-            listen_addrs: vec!["/ip4/0.0.0.0/tcp/0".to_string()],
-            nat: Some("any".to_string()),
+            listen_ip: None,
+            listen_port: None,
+            nat: Some("auto".to_string()),
             discovery_port: Some(8090),
             net_priv_key_file: None,
+            network: None,
             bootstrap_nodes: vec![],
+            no_bootstrap_node: None,
             max_peers: Some(160),
             num_threads: Some(0),
             agent_string: Some("Storage".to_string()),
@@ -235,8 +303,12 @@ impl Default for StorageConfig {
             block_maintenance_interval: Some(10 * 60),    // 10 minutes in seconds
             block_maintenance_number_of_blocks: Some(1000),
             block_retries: Some(3000),
-            cache_size: Some(0),
             log_file: None,
+            mix_enabled: None,
+            mix_pool: None,
+            mix_pool_json: None,
+            dht_mix_proxies: vec![],
+            dht_proxy_max_in_flight: None,
         }
     }
 }
@@ -251,11 +323,14 @@ impl StorageConfig {
             metrics_address: None,
             metrics_port: None,
             data_dir: None,
-            listen_addrs: vec![],
+            listen_ip: None,
+            listen_port: None,
             nat: None,
             discovery_port: None,
             net_priv_key_file: None,
+            network: None,
             bootstrap_nodes: vec![],
+            no_bootstrap_node: None,
             max_peers: None,
             num_threads: None,
             agent_string: None,
@@ -265,8 +340,12 @@ impl StorageConfig {
             block_maintenance_interval: None,
             block_maintenance_number_of_blocks: None,
             block_retries: None,
-            cache_size: None,
             log_file: None,
+            mix_enabled: None,
+            mix_pool: None,
+            mix_pool_json: None,
+            dht_mix_proxies: vec![],
+            dht_proxy_max_in_flight: None,
         }
     }
 
@@ -317,15 +396,15 @@ impl StorageConfig {
         self
     }
 
-    /// Set the listen addresses
-    pub fn listen_addrs(mut self, addrs: Vec<String>) -> Self {
-        self.listen_addrs = addrs;
+    /// Set the listen IP address
+    pub fn listen_ip<S: Into<String>>(mut self, ip: S) -> Self {
+        self.listen_ip = Some(ip.into());
         self
     }
 
-    /// Add a listen address
-    pub fn add_listen_addr<S: Into<String>>(mut self, addr: S) -> Self {
-        self.listen_addrs.push(addr.into());
+    /// Set the listen TCP port
+    pub fn listen_port(mut self, port: u16) -> Self {
+        self.listen_port = Some(port);
         self
     }
 
@@ -401,15 +480,57 @@ impl StorageConfig {
         self
     }
 
-    /// Set the cache size
-    pub fn cache_size(mut self, size: u64) -> Self {
-        self.cache_size = Some(size);
-        self
-    }
-
     /// Set the log file path
     pub fn log_file<P: Into<PathBuf>>(mut self, path: P) -> Self {
         self.log_file = Some(path.into());
+        self
+    }
+
+    /// Set the network preset
+    pub fn network(mut self, network: NetworkPreset) -> Self {
+        self.network = Some(network);
+        self
+    }
+
+    /// Do not bootstrap the node at all
+    pub fn no_bootstrap_node(mut self, enabled: bool) -> Self {
+        self.no_bootstrap_node = Some(enabled);
+        self
+    }
+
+    /// Enable routing of DHT lookups through the Mix protocol
+    pub fn mix_enabled(mut self, enabled: bool) -> Self {
+        self.mix_enabled = Some(enabled);
+        self
+    }
+
+    /// Set the path to the Mix relay pool JSON file
+    pub fn mix_pool<P: Into<PathBuf>>(mut self, path: P) -> Self {
+        self.mix_pool = Some(path.into());
+        self
+    }
+
+    /// Set the inline JSON content of the Mix relay pool
+    pub fn mix_pool_json<S: Into<String>>(mut self, json: S) -> Self {
+        self.mix_pool_json = Some(json.into());
+        self
+    }
+
+    /// Set the DHT mix proxy destinations
+    pub fn dht_mix_proxies(mut self, proxies: Vec<String>) -> Self {
+        self.dht_mix_proxies = proxies;
+        self
+    }
+
+    /// Add a DHT mix proxy destination
+    pub fn add_dht_mix_proxy<S: Into<String>>(mut self, proxy: S) -> Self {
+        self.dht_mix_proxies.push(proxy.into());
+        self
+    }
+
+    /// Set the max concurrent DHT proxy lookups handled by this node
+    pub fn dht_proxy_max_in_flight(mut self, max: u32) -> Self {
+        self.dht_proxy_max_in_flight = Some(max);
         self
     }
 
@@ -749,7 +870,7 @@ mod tests {
 
         // Minimal config - should only have log-level
         assert!(parsed.get("log-level").is_some());
-        assert!(parsed.get("listen-addrs").is_none()); // Empty vector should be skipped
+        assert!(parsed.get("listen-ip").is_none()); // None should be skipped
         assert!(parsed.get("bootstrap-node").is_none()); // Empty vector should be skipped
     }
 
@@ -773,7 +894,7 @@ mod tests {
             .data_dir("/tmp/storage")
             .storage_quota(1024 * 1024)
             .max_peers(50)
-            .add_listen_addr("/ip4/127.0.0.1/tcp/8080")
+            .listen_ip("127.0.0.1")
             .add_bootstrap_node("/ip4/127.0.0.1/tcp/8081");
 
         let json_str = config.to_json().expect("Failed to serialize to JSON");
@@ -787,7 +908,7 @@ mod tests {
         assert_eq!(parsed["data-dir"], "/tmp/storage");
         assert_eq!(parsed["storage-quota"], 1048576);
         assert_eq!(parsed["max-peers"], 50);
-        assert!(parsed["listen-addrs"].is_array());
+        assert_eq!(parsed["listen-ip"], "127.0.0.1");
         assert!(parsed["bootstrap-node"].is_array());
     }
 
@@ -798,18 +919,18 @@ mod tests {
 
         // Minimal JSON
         assert_eq!(config.log_level, Some(LogLevel::Info));
-        assert_eq!(config.listen_addrs, Vec::<String>::new()); // Default empty
+        assert_eq!(config.listen_ip, None); // Default empty
         assert_eq!(config.bootstrap_nodes, Vec::<String>::new()); // Default empty
     }
 
     #[test]
     fn test_json_deserialization_with_empty_vectors() {
-        let json_str = r#"{"log-level":"debug","listen-addrs":[],"bootstrap-node":[]}"#;
+        let json_str = r#"{"log-level":"debug","dht-mix-proxy":[],"bootstrap-node":[]}"#;
         let config = StorageConfig::from_json(json_str).expect("Failed to deserialize from JSON");
 
         // JSON with empty vectors
         assert_eq!(config.log_level, Some(LogLevel::Debug));
-        assert_eq!(config.listen_addrs, Vec::<String>::new());
+        assert_eq!(config.dht_mix_proxies, Vec::<String>::new());
         assert_eq!(config.bootstrap_nodes, Vec::<String>::new());
     }
 
@@ -822,10 +943,13 @@ mod tests {
             "metrics-address":"192.168.1.100",
             "metrics-port":9000,
             "data-dir":"/tmp/storage",
-            "listen-addrs":["/ip4/127.0.0.1/tcp/8080"],
-            "nat":"any",
+            "listen-ip":"127.0.0.1",
+            "listen-port":8080,
+            "nat":"auto",
             "disc-port":8090,
+            "network":"logos.test",
             "bootstrap-node":["/ip4/127.0.0.1/tcp/8081"],
+            "no-bootstrap-node":false,
             "max-peers":100,
             "num-threads":4,
             "agent-string":"TestAgent/1.0",
@@ -835,7 +959,10 @@ mod tests {
             "block-mi":600,
             "block-mn":500,
             "block-retries":1000,
-            "cache-size":1048576,
+            "mix-enabled":true,
+            "mix-pool-json":"{\"relays\":[]}",
+            "dht-mix-proxy":["spr:proxy1"],
+            "dht-proxy-max-inflight":8,
             "log-file":"/var/log/storage.log"
         }"#;
 
@@ -848,10 +975,13 @@ mod tests {
         assert_eq!(config.metrics_address, Some("192.168.1.100".to_string()));
         assert_eq!(config.metrics_port, Some(9000));
         assert_eq!(config.data_dir, Some(PathBuf::from("/tmp/storage")));
-        assert_eq!(config.listen_addrs, vec!["/ip4/127.0.0.1/tcp/8080"]);
-        assert_eq!(config.nat, Some("any".to_string()));
+        assert_eq!(config.listen_ip, Some("127.0.0.1".to_string()));
+        assert_eq!(config.listen_port, Some(8080));
+        assert_eq!(config.nat, Some("auto".to_string()));
         assert_eq!(config.discovery_port, Some(8090));
+        assert_eq!(config.network, Some(NetworkPreset::LogosTest));
         assert_eq!(config.bootstrap_nodes, vec!["/ip4/127.0.0.1/tcp/8081"]);
+        assert_eq!(config.no_bootstrap_node, Some(false));
         assert_eq!(config.max_peers, Some(100));
         assert_eq!(config.num_threads, Some(4));
         assert_eq!(config.agent_string, Some("TestAgent/1.0".to_string()));
@@ -861,7 +991,10 @@ mod tests {
         assert_eq!(config.block_maintenance_interval, Some(600));
         assert_eq!(config.block_maintenance_number_of_blocks, Some(500));
         assert_eq!(config.block_retries, Some(1000));
-        assert_eq!(config.cache_size, Some(1048576));
+        assert_eq!(config.mix_enabled, Some(true));
+        assert_eq!(config.mix_pool_json, Some("{\"relays\":[]}".to_string()));
+        assert_eq!(config.dht_mix_proxies, vec!["spr:proxy1"]);
+        assert_eq!(config.dht_proxy_max_in_flight, Some(8));
         assert_eq!(config.log_file, Some(PathBuf::from("/var/log/storage.log")));
     }
 
@@ -887,26 +1020,15 @@ mod tests {
     }
 
     #[test]
-    fn test_listen_addrs_builder() {
-        let config = StorageConfig::new().listen_addrs(vec![
-            "/ip4/127.0.0.1/tcp/8080".to_string(),
-            "/ip4/0.0.0.0/tcp/8080".to_string(),
-        ]);
-
-        assert_eq!(config.listen_addrs.len(), 2);
-        assert_eq!(config.listen_addrs[0], "/ip4/127.0.0.1/tcp/8080");
-        assert_eq!(config.listen_addrs[1], "/ip4/0.0.0.0/tcp/8080");
+    fn test_listen_ip_builder() {
+        let config = StorageConfig::new().listen_ip("127.0.0.1");
+        assert_eq!(config.listen_ip, Some("127.0.0.1".to_string()));
     }
 
     #[test]
-    fn test_add_listen_addr_builder() {
-        let config = StorageConfig::new()
-            .add_listen_addr("/ip4/127.0.0.1/tcp/8080")
-            .add_listen_addr("/ip4/0.0.0.0/tcp/8080");
-
-        assert_eq!(config.listen_addrs.len(), 2);
-        assert_eq!(config.listen_addrs[0], "/ip4/127.0.0.1/tcp/8080");
-        assert_eq!(config.listen_addrs[1], "/ip4/0.0.0.0/tcp/8080");
+    fn test_listen_port_builder() {
+        let config = StorageConfig::new().listen_port(8080);
+        assert_eq!(config.listen_port, Some(8080));
     }
 
     #[test]
@@ -929,8 +1051,8 @@ mod tests {
 
     #[test]
     fn test_nat_builder() {
-        let config = StorageConfig::new().nat("any");
-        assert_eq!(config.nat, Some("any".to_string()));
+        let config = StorageConfig::new().nat("auto");
+        assert_eq!(config.nat, Some("auto".to_string()));
     }
 
     #[test]
@@ -969,9 +1091,23 @@ mod tests {
     }
 
     #[test]
-    fn test_cache_size_builder() {
-        let config = StorageConfig::new().cache_size(1024 * 1024); // 1 MB
-        assert_eq!(config.cache_size, Some(1024 * 1024));
+    fn test_mix_builders() {
+        let config = StorageConfig::new()
+            .mix_enabled(true)
+            .mix_pool_json("{\"relays\":[]}")
+            .add_dht_mix_proxy("spr:proxy1")
+            .dht_proxy_max_in_flight(8);
+
+        assert_eq!(config.mix_enabled, Some(true));
+        assert_eq!(config.mix_pool_json, Some("{\"relays\":[]}".to_string()));
+        assert_eq!(config.dht_mix_proxies, vec!["spr:proxy1"]);
+        assert_eq!(config.dht_proxy_max_in_flight, Some(8));
+    }
+
+    #[test]
+    fn test_network_builder() {
+        let config = StorageConfig::new().network(NetworkPreset::LogosTest);
+        assert_eq!(config.network, Some(NetworkPreset::LogosTest));
     }
 
     #[test]
@@ -986,7 +1122,8 @@ mod tests {
             .log_level(LogLevel::Debug)
             .log_format(LogFormat::Json)
             .data_dir("/tmp/storage")
-            .listen_addrs(vec!["/ip4/127.0.0.1/tcp/8080".to_string()])
+            .listen_ip("127.0.0.1")
+            .listen_port(8080)
             .enable_metrics(true)
             .metrics_address("127.0.0.1")
             .metrics_port(8080)
@@ -994,16 +1131,16 @@ mod tests {
             .max_peers(50)
             .storage_quota(1024 * 1024 * 1024) // 1 GB
             .repo_kind(RepoKind::Sqlite)
-            .nat("any")
+            .nat("auto")
             .agent_string("TestAgent/1.0")
             .block_ttl(86400)
-            .cache_size(1024 * 1024);
+            .mix_enabled(true);
 
         assert_eq!(config.log_level, Some(LogLevel::Debug));
         assert_eq!(config.log_format, Some(LogFormat::Json));
         assert_eq!(config.data_dir, Some(PathBuf::from("/tmp/storage")));
-        assert_eq!(config.listen_addrs.len(), 1);
-        assert_eq!(config.listen_addrs[0], "/ip4/127.0.0.1/tcp/8080");
+        assert_eq!(config.listen_ip, Some("127.0.0.1".to_string()));
+        assert_eq!(config.listen_port, Some(8080));
         assert_eq!(config.metrics_enabled, Some(true));
         assert_eq!(config.metrics_address, Some("127.0.0.1".to_string()));
         assert_eq!(config.metrics_port, Some(8080));
@@ -1011,9 +1148,9 @@ mod tests {
         assert_eq!(config.max_peers, Some(50));
         assert_eq!(config.storage_quota, Some(1024 * 1024 * 1024));
         assert_eq!(config.repo_kind, Some(RepoKind::Sqlite));
-        assert_eq!(config.nat, Some("any".to_string()));
+        assert_eq!(config.nat, Some("auto".to_string()));
         assert_eq!(config.agent_string, Some("TestAgent/1.0".to_string()));
         assert_eq!(config.block_ttl, Some(86400));
-        assert_eq!(config.cache_size, Some(1024 * 1024));
+        assert_eq!(config.mix_enabled, Some(true));
     }
 }

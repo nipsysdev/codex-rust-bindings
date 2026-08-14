@@ -37,7 +37,7 @@ pub async fn upload_init(node: &StorageNode, options: &UploadOptions) -> Result<
         .and_then(|p| p.to_str())
         .unwrap_or("");
 
-    let chunk_size = options.chunk_size.unwrap_or(1024 * 1024);
+    let chunk_size = options.chunk_size.unwrap_or(64 * 1024);
 
     let result = with_libstorage_lock(|| unsafe {
         node.with_ctx(|ctx| {

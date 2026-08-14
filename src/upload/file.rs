@@ -121,7 +121,7 @@ where
         options.validate()?;
 
         let start_time = std::time::Instant::now();
-        let chunk_size = options.chunk_size.unwrap_or(1024 * 1024);
+        let chunk_size = options.chunk_size.unwrap_or(64 * 1024);
 
         let session_id = upload_init_sync(&node, &options)?;
 
@@ -180,7 +180,7 @@ fn upload_init_sync(node: &StorageNode, options: &UploadOptions) -> Result<Strin
         .and_then(|p| p.to_str())
         .unwrap_or("");
 
-    let chunk_size = options.chunk_size.unwrap_or(1024 * 1024);
+    let chunk_size = options.chunk_size.unwrap_or(64 * 1024);
     let context_ptr = future.context_ptr();
 
     let result = crate::callback::with_libstorage_lock(|| unsafe {

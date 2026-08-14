@@ -76,20 +76,6 @@ fn try_use_cached_files(
 
     prebuilt::log_info("✓ Using cached prebuilt binaries");
 
-    // Verify checksums of cached files
-    prebuilt::log_info("Verifying checksums of cached files...");
-    if let Err(e) = checksum::verify_all_checksums(&cache_dir) {
-        prebuilt::log_info(&format!(
-            "⚠ Checksum verification failed for cached files: {}",
-            e
-        ));
-        prebuilt::log_info("Re-downloading prebuilt binaries...");
-        // Remove invalid cache
-        let _ = fs::remove_dir_all(&cache_dir);
-        return Err("Checksum verification failed".into());
-    }
-    prebuilt::log_info("✓ Checksum verification passed");
-
     // Copy from cache to OUT_DIR
     cache::copy_from_cache(&cache_dir, out_dir)?;
 
@@ -129,35 +115,21 @@ fn download_and_extract_binaries(
     prebuilt::log_info(&format!("  Name: {}", asset.name));
     prebuilt::log_info(&format!("  Download URL: {}", asset.browser_download_url));
 
+    let expected_checksum = asset
+        .digest
+        .as_deref()
+        .and_then(|digest| digest.strip_prefix("sha256:"))
+        .ok_or_else(|| format!("No sha256 digest published for asset {}", asset.name))?;
+
     // Download to temporary location
     prebuilt::log_info("Downloading archive to temporary location...");
-    let temp_archive = out_dir.join(format!("{}.tar.gz", platform));
+    let temp_archive = out_dir.join(format!("{}.zip", platform));
     download::download_file(&asset.browser_download_url, &temp_archive)?;
     prebuilt::log_info("✓ Archive downloaded to temporary location");
 
-    // Fetch SHA256SUMS.txt to get expected checksum for the archive
-    prebuilt::log_info("Fetching SHA256SUMS.txt from GitHub...");
-    let checksums_content = github::fetch_checksums_file(version)?;
-
-    // Parse checksums to find the expected checksum for this archive
-    prebuilt::log_info(&format!("Looking for checksum for: {}", asset.name));
-    let expected_checksum = checksums_content
-        .lines()
-        .find_map(|line| {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 2 && parts[1] == asset.name {
-                Some(parts[0].to_string())
-            } else {
-                None
-            }
-        })
-        .ok_or_else(|| format!("Checksum not found for {} in SHA256SUMS.txt", asset.name))?;
-
-    prebuilt::log_info(&format!("✓ Found expected checksum: {}", expected_checksum));
-
     // Verify archive before extraction
     prebuilt::log_info("Verifying archive checksum before extraction...");
-    checksum::verify_archive_checksum(&temp_archive, &expected_checksum)?;
+    checksum::verify_archive_checksum(&temp_archive, expected_checksum)?;
     prebuilt::log_info("✓ Archive checksum verified");
 
     // Extract the archive
@@ -169,11 +141,6 @@ fn download_and_extract_binaries(
     prebuilt::log_info("Cleaning up temporary archive...");
     fs::remove_file(&temp_archive)?;
     prebuilt::log_info("✓ Temporary archive removed");
-
-    // Verify all extracted files
-    prebuilt::log_info("Verifying checksums of extracted files...");
-    checksum::verify_all_checksums(out_dir)?;
-    prebuilt::log_info("✓ All checksums verified");
 
     Ok(())
 }
@@ -212,16 +179,15 @@ fn save_to_cache(
     Ok(())
 }
 
-/// Extracts a tar.gz archive to a directory
+/// Extracts a zip archive to a directory
 fn extract_archive(archive_path: &Path, dest_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     prebuilt::log_info(&format!("Extracting archive: {}", archive_path.display()));
     prebuilt::log_info(&format!("Destination: {}", dest_dir.display()));
 
     let file = fs::File::open(archive_path)?;
-    let gz_decoder = flate2::read::GzDecoder::new(file);
-    let mut tar_archive = tar::Archive::new(gz_decoder);
+    let mut zip_archive = zip::ZipArchive::new(file)?;
 
-    tar_archive.unpack(dest_dir)?;
+    zip_archive.extract(dest_dir)?;
 
     prebuilt::log_info("✓ Archive extraction completed");
     Ok(())

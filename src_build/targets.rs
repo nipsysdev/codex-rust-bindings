@@ -5,12 +5,11 @@
 ///
 /// To add support for a new platform:
 /// 1. Add an entry to this mapping
-/// 2. Ensure the corresponding prebuilt binary exists in the logos-storage-nim-bin GitHub releases
+/// 2. Ensure the corresponding prebuilt binary exists in the logos-storage-nim GitHub releases
 pub const SUPPORTED_TARGETS: &[(&str, &str)] = &[
     ("x86_64-unknown-linux-gnu", "linux-amd64"),
     ("aarch64-unknown-linux-gnu", "linux-arm64"),
     ("aarch64-apple-darwin", "darwin-arm64"),
-    ("x86_64-apple-darwin", "darwin-amd64"),
 ];
 
 /// Returns a list of all supported target triples

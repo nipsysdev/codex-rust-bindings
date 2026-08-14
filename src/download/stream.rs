@@ -50,7 +50,7 @@ pub async fn download_stream(
     options.validate()?;
 
     let start_time = std::time::Instant::now();
-    let chunk_size = options.chunk_size.unwrap_or(1024 * 1024);
+    let chunk_size = options.chunk_size.unwrap_or(64 * 1024);
 
     let total_bytes = Arc::new(Mutex::new(0usize));
     let total_bytes_clone = total_bytes.clone();

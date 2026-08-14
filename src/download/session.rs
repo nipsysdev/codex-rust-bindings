@@ -44,7 +44,7 @@ pub async fn download_init(node: &StorageNode, cid: &str, options: &DownloadOpti
     let future = CallbackFuture::new();
     let context_ptr = future.context_ptr();
 
-    let chunk_size = options.chunk_size.unwrap_or(1024 * 1024);
+    let chunk_size = options.chunk_size.unwrap_or(64 * 1024);
 
     let result = with_libstorage_lock(|| unsafe {
         node.with_ctx(|ctx| {
@@ -141,7 +141,7 @@ pub(crate) fn download_init_sync(
     let future = CallbackFuture::new();
     let context_ptr = future.context_ptr();
 
-    let chunk_size = options.chunk_size.unwrap_or(1024 * 1024);
+    let chunk_size = options.chunk_size.unwrap_or(64 * 1024);
 
     let result = with_libstorage_lock(|| unsafe {
         node.with_ctx(|ctx| {
