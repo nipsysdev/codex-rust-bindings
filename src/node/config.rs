@@ -894,7 +894,7 @@ mod tests {
             .data_dir("/tmp/storage")
             .storage_quota(1024 * 1024)
             .max_peers(50)
-            .listen_ip("/ip4/127.0.0.1/tcp/8080")
+            .listen_ip("127.0.0.1")
             .add_bootstrap_node("/ip4/127.0.0.1/tcp/8081");
 
         let json_str = config.to_json().expect("Failed to serialize to JSON");
@@ -908,7 +908,7 @@ mod tests {
         assert_eq!(parsed["data-dir"], "/tmp/storage");
         assert_eq!(parsed["storage-quota"], 1048576);
         assert_eq!(parsed["max-peers"], 50);
-        assert_eq!(parsed["listen-ip"], "/ip4/127.0.0.1/tcp/8080");
+        assert_eq!(parsed["listen-ip"], "127.0.0.1");
         assert!(parsed["bootstrap-node"].is_array());
     }
 

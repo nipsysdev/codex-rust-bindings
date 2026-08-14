@@ -296,11 +296,16 @@ impl StorageNode {
         future.await?;
 
         // storage_destroy is synchronous and takes only the context.
-        unsafe { storage_destroy(ctx) };
+        let result = unsafe { storage_destroy(ctx) };
 
+        // Null the context before reporting the failure, so Drop does not free it again.
         {
             let mut inner = self.inner.lock().unwrap();
             inner.ctx = ptr::null_mut();
+        }
+
+        if result != 0 {
+            return Err(StorageError::node_error("destroy", "Failed to destroy node"));
         }
 
         Ok(())
