@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+/// Block size bounds enforced by libstorage (MinBlockSize / MaxBlockSize)
+const MIN_BLOCK_SIZE: usize = 4 * 1024;
+const MAX_BLOCK_SIZE: usize = 512 * 1024;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum UploadStrategy {
@@ -139,10 +143,12 @@ impl UploadOptions {
 
     pub fn validate(&self) -> Result<()> {
         if let Some(chunk_size) = self.chunk_size {
-            if chunk_size == 0 {
+            if !(MIN_BLOCK_SIZE..=MAX_BLOCK_SIZE).contains(&chunk_size)
+                || !chunk_size.is_power_of_two()
+            {
                 return Err(StorageError::invalid_parameter(
                     "chunk_size",
-                    "Chunk size must be greater than 0",
+                    "Chunk size must be a power of two between 4 KiB and 512 KiB",
                 ));
             }
         }
@@ -216,13 +222,13 @@ mod tests {
     fn test_upload_options() {
         let options = UploadOptions::new()
             .filepath("/test/file.txt")
-            .chunk_size(2048)
+            .chunk_size(64 * 1024)
             .strategy(UploadStrategy::Chunked)
             .verify(false)
             .timeout(600);
 
         assert_eq!(options.filepath, Some(PathBuf::from("/test/file.txt")));
-        assert_eq!(options.chunk_size, Some(2048));
+        assert_eq!(options.chunk_size, Some(64 * 1024));
         assert_eq!(options.strategy, UploadStrategy::Chunked);
         assert!(!options.verify);
         assert_eq!(options.timeout, Some(600));
@@ -236,7 +242,13 @@ mod tests {
         options.chunk_size = Some(0);
         assert!(options.validate().is_err());
 
-        options.chunk_size = Some(1024);
+        options.chunk_size = Some(1024 * 1024);
+        assert!(options.validate().is_err());
+
+        options.chunk_size = Some(100_000);
+        assert!(options.validate().is_err());
+
+        options.chunk_size = Some(64 * 1024);
         options.timeout = Some(0);
         assert!(options.validate().is_err());
     }

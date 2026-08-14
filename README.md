@@ -20,7 +20,7 @@ Building will automatically:
 1. Fetch the pinned static library release of libstorage for your platform from the [logos-storage-nim](https://github.com/logos-storage/logos-storage-nim/releases) repository releases
 2. Generate Rust bindings and compile the crate
 
-**Note**: The first build will download the prebuilt libraries (~135MB). Subsequent builds will use the cached version.
+**Note**: The first build will download the prebuilt libraries (~135MB on Linux, ~12MB on macOS). Subsequent builds will use the cached version.
 
 ## Caching
 
@@ -165,6 +165,7 @@ cargo test --test $test_name
 - **storage_management**: Demonstrates storage management operations
 - **two_node_network**: Shows two-node network setup and data transfer
 - **thread_safe_tests**: Tests thread-safe node lifecycle and concurrent operations
+- **private_queries**: Tests toggling Mix private queries
 
 ## License
 

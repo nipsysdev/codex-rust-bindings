@@ -350,11 +350,10 @@ impl StorageNode {
             return Err(StorageError::node_error("version", "Failed to get version"));
         }
 
-        let version = unsafe { c_str_to_string(c_ptr) }
-            .map_err(|e| StorageError::node_error("version", format!("Invalid UTF-8: {}", e)))?;
+        let version = unsafe { c_str_to_string(c_ptr) };
         unsafe { libc::free(c_ptr as *mut c_void) };
 
-        Ok(version)
+        version.map_err(|e| StorageError::node_error("version", format!("Invalid UTF-8: {}", e)))
     }
 
     /// Get the revision of the Storage node
@@ -373,11 +372,10 @@ impl StorageNode {
             ));
         }
 
-        let revision = unsafe { c_str_to_string(c_ptr) }
-            .map_err(|e| StorageError::node_error("revision", format!("Invalid UTF-8: {}", e)))?;
+        let revision = unsafe { c_str_to_string(c_ptr) };
         unsafe { libc::free(c_ptr as *mut c_void) };
 
-        Ok(revision)
+        revision.map_err(|e| StorageError::node_error("revision", format!("Invalid UTF-8: {}", e)))
     }
 
     /// Get the repository path of the Storage node
