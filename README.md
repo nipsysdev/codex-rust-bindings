@@ -11,7 +11,7 @@ Include in your Cargo project:
 storage-bindings = "0.4.4"
 ```
 
-To learn how to use those bindings, take a look at the [example project](https://github.com/nipsysdev/example-storage-rust-bindings) or the [integration tests](./tests/) directory.
+To learn how to use those bindings, take a look at the [integration tests](./tests/) directory.
 
 ## Building
 
@@ -38,16 +38,17 @@ The cache is organized by version and platform:
 
 ```
 ~/.cache/storage-bindings/
-├── v0.4.4/              # Stable release
+├── v0.4.4/
 │   ├── linux-amd64/
 │   │   ├── libstorage.a
+│   │   ├── libnatpmp.a
+│   │   ├── libminiupnpc.a
+│   │   ├── libbacktrace.a
+│   │   ├── libplum.a
 │   │   └── libstorage.h
 │   └── darwin-arm64/
 │       └── ...
-├── master-60861d6a/     # Nightly release
-│   ├── linux-amd64/
-│   └── darwin-arm64/
-└── master-2b3d4e5/
+└── v0.4.3/
     └── ...
 ```
 

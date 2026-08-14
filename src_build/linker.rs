@@ -71,9 +71,6 @@ pub fn link_prebuilt_library(lib_dir: &PathBuf) {
     println!("cargo:rustc-link-arg=-Wl,--allow-multiple-definition");
     println!("  [LINKER]   - --defsym=__rust_probestack=0");
     println!("cargo:rustc-link-arg=-Wl,--defsym=__rust_probestack=0");
-    println!("  [LINKER]   - --whole-archive for static libraries");
-    println!("cargo:rustc-link-arg=-Wl,--whole-archive");
-    println!("cargo:rustc-link-arg=-Wl,--no-whole-archive");
     println!("  [LINKER] ✓ Linker flags set");
 
     println!("  [LINKER] ✓ link_prebuilt_library completed successfully");
