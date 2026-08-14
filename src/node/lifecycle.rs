@@ -305,7 +305,10 @@ impl StorageNode {
         }
 
         if result != 0 {
-            return Err(StorageError::node_error("destroy", "Failed to destroy node"));
+            return Err(StorageError::node_error(
+                "destroy",
+                "Failed to destroy node",
+            ));
         }
 
         Ok(())
